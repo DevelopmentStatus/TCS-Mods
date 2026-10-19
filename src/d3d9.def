@@ -1,0 +1,5 @@
+LIBRARY d3d9
+EXPORTS
+Direct3DCreate9=_ProxyCreate9@4
+D3DPERF_BeginEvent=_ProxyBeginEvent@8
+D3DPERF_EndEvent=_ProxyEndEvent@0
