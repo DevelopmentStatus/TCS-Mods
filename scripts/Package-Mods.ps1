@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $components = @(
-    @{Name='TCSModLoader'; Version='1.0.0'; Dll='d3d9.dll'},
+    @{Name='TCSModLoader'; Version='1.1.0'; Dll='d3d9.dll'},
     @{Name='TCSFirstPerson'; Version='0.4.0'; Dll='TCSFirstPerson.dll'},
     @{Name='TCSModernOptions'; Version='0.4.0'; Dll='TCSModernOptions.dll'},
     @{Name='TCSAllyDamage'; Version='1.1.1'; Dll='TCSAllyDamage.dll'},
@@ -17,19 +17,23 @@ foreach ($component in $components) {
     }
 }
 New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+if (!(Test-Path -LiteralPath (Join-Path $BuildPath 'TCSAssetManager.exe'))) {
+    throw 'Missing TCSAssetManager.exe. Run scripts/Build-AssetManager.ps1 before packaging.'
+}
 # Unique staging folders avoid picking up files from previous packaging runs.
 $stageRoot = Join-Path $OutputPath ('stage-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stageRoot | Out-Null
 foreach ($component in $components) {
     $stage = Join-Path $stageRoot $component.Name
     New-Item -ItemType Directory -Path $stage | Out-Null
-    Copy-Item -Path (Join-Path $repoPath "packages\$($component.Name)\*") -Destination $stage
+    Copy-Item -Path (Join-Path $repoPath "packages\$($component.Name)\*") -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $BuildPath $component.Dll) -Destination $stage
     if ($component.Name -eq 'TCSModLoader') {
+        Copy-Item -LiteralPath (Join-Path $BuildPath 'TCSAssetManager.exe') -Destination $stage
         Copy-Item -LiteralPath (Join-Path $repoPath 'docs') -Destination $stage -Recurse
         $mods = Join-Path $stage 'Mods'
         New-Item -ItemType Directory -Path $mods | Out-Null
-        Set-Content -LiteralPath (Join-Path $mods 'README.txt') -Value 'Place plugin ZIPs directly in this folder. Keep them compressed.' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $mods 'README.txt') -Value 'Place plugin ZIPs or supported asset ZIP/RAR archives directly here. Keep them compressed. Remove an archive and restart to restore underlying assets. See docs/ASSET_IMPORT.md.' -Encoding UTF8
     }
     $zip = Join-Path $OutputPath "$($component.Name)-v$($component.Version).zip"
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force

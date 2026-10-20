@@ -10,19 +10,19 @@ Download the ZIPs below using GitHub's **Download raw file** button. Install the
 
 | Component | Included build | What it does | Main source |
 | --- | --- | --- | --- |
-| [TCS Mod Loader](dist/TCSModLoader-v1.0.0.zip) | 1.0.0 | Direct3D 9 proxy, ZIP discovery, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [TCS Mod Loader](dist/TCSModLoader-v1.1.0.zip) | 1.1.0 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
 | [TCS First Person](dist/TCSFirstPerson-v0.4.0.zip) | 0.4.0 | First-person camera, animated head camera style, orbit camera, mouse aiming, visible body, and PC controls | [mod.cpp](src/mod.cpp) |
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
 | [TCS Ally Damage](dist/TCSAllyDamage-v1.1.1.zip) | 1.1.1 | Damage eligibility and active combat behavior for AI party companions | [ally_damage.cpp](src/ally_damage.cpp) |
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
 
-The ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
+The loader 1.1.0 ZIP is built from the updated source in this repository. The plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
 ## Installation
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.0.0.zip` into the game folder. Its `d3d9.dll` must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.1.0.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
 5. Start the game. Open **Pause > Mod Settings**, directly below **Effects Settings**, then select a mod to configure it.
 
@@ -32,6 +32,7 @@ Example installation:
 LEGO Star Wars Saga/
 ├── LEGOStarWarsSaga.exe        # Your existing game executable
 ├── d3d9.dll                    # TCS Mod Loader
+├── TCSAssetManager.exe          # Bundled asset importer
 ├── TCSModLoader.ini
 └── Mods/
     ├── TCSFirstPerson-v0.4.0.zip
@@ -41,6 +42,8 @@ LEGO Star Wars Saga/
     ├── Config/                # Created by the loader
     └── Loaded/                # Created by the loader
 ```
+
+Asset mods: drop supported ZIP/RAR downloads directly into `Mods`. No QuickBMS or separate Python installation is needed. Removing an archive and restarting restores the original asset unless another enabled mod replaces it. See [asset installation and conflict rules](docs/ASSET_IMPORT.md).
 
 Only install one ZIP per plugin ID. Move older versions out of the top level of `Mods` before upgrading. Keep `Mods/Config` to retain settings. The loader refreshes extracted packages under `Mods/Loaded` at startup.
 
@@ -134,10 +137,11 @@ ctest --test-dir build -C Release --output-on-failure
 Outputs are `build/Release/d3d9.dll`, `TCSFirstPerson.dll`, `TCSModernOptions.dll`, `TCSAllyDamage.dll`, and `TCSSkipSplash.dll`. To package locally built DLLs using the supplied manifests and defaults:
 
 ```powershell
+.\scripts\Build-AssetManager.ps1
 .\scripts\Package-Mods.ps1
 ```
 
-Generated ZIPs go under `build/packages`, leaving preserved downloads intact. The package helper copies current documentation into the loader package. Change version metadata before publishing a modified build.
+Build the bundled asset importer with `scripts/Build-AssetManager.ps1` before packaging (developer-only requirements: Python and PyInstaller). Generated ZIPs go under `build/packages`, leaving preserved downloads intact. The package helper copies current documentation into the loader package. Change version metadata before publishing a modified build.
 
 `TCS_BUILD_RUNTIME_PROBE=ON` enables an optional native video lifecycle probe for controlled in-game investigation. It is off by default and is not included by the package helper.
 

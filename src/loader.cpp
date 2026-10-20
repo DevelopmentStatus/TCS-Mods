@@ -16,6 +16,7 @@
 #include "mod_api.h"
 #include "native_pause_menu.h"
 #include "pause_menu.h"
+#include "asset_overlay.h"
 
 #pragma comment(lib,"winmm.lib")
 namespace {
@@ -334,6 +335,7 @@ void loadZip(const std::wstring& zip,const std::wstring& filename){
     std::wstring stem=filename.substr(0,filename.size()-4);for(auto& c:stem)if(!((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'_'||c==L'-'))c=L'_';
     std::wstring dest=root+L"Mods\\Loaded\\"+stem; if(!extractZip(zip,dest)){log("Could not extract mod archive; skipping it");return;}
     std::wstring manifest=dest+L"\\manifest.ini",idBuf[1];wchar_t id[256]{},entry[260]{};
+    if(GetFileAttributesW(manifest.c_str())==INVALID_FILE_ATTRIBUTES)return; // Legacy assets are handled by the importer.
     GetPrivateProfileStringW(L"Mod",L"Id",L"",id,256,manifest.c_str());GetPrivateProfileStringW(L"Mod",L"Entry",L"",entry,260,manifest.c_str());
     if(!id[0]||!entry[0]||wcschr(entry,L'/')||wcschr(entry,L'\\')){log("Invalid mod manifest; skipping archive");return;}
     std::wstring dll=dest+L"\\"+entry;HMODULE m=LoadLibraryW(dll.c_str());if(!m){log("Mod entry DLL failed to load; skipping archive");return;}
@@ -381,7 +383,7 @@ void loadCoreConfig(){optionsConfig=iniPath(L"TCSModLoader.ini");}
 
 extern "C" IDirect3D9* WINAPI ProxyCreate9(UINT version) {
     static bool initialized=false;
-    if(!realD3D){wchar_t path[MAX_PATH];GetSystemDirectoryW(path,MAX_PATH);wcscat_s(path,L"\\d3d9.dll");realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;timeBeginPeriod(1);logFile=_fsopen("TCSModernOptions.log","w",_SH_DENYNO);wchar_t exe[MAX_PATH];GetModuleFileNameW(nullptr,exe,MAX_PATH);wchar_t* slash=wcsrchr(exe,L'\\');if(slash){slash[1]=0;root=exe;}if(!initialized){initialized=true;loadCoreConfig();loadPlugins();log("TCS Modern Options loader initialized");}}
+    if(!realD3D){wchar_t path[MAX_PATH];GetSystemDirectoryW(path,MAX_PATH);wcscat_s(path,L"\\d3d9.dll");realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;timeBeginPeriod(1);logFile=_fsopen("TCSModernOptions.log","w",_SH_DENYNO);wchar_t exe[MAX_PATH];GetModuleFileNameW(nullptr,exe,MAX_PATH);wchar_t* slash=wcsrchr(exe,L'\\');if(slash){slash[1]=0;root=exe;}if(!initialized){initialized=true;loadCoreConfig();PrepareAssetOverlay(root,host,log);loadPlugins();log("TCS Modern Options loader initialized");}}
     auto fn=reinterpret_cast<IDirect3D9*(WINAPI*)(UINT)>(GetProcAddress(realD3D,"Direct3DCreate9"));auto d=fn(version);
     // The loader owns Mod Settings, including when no optional mods are installed.
     if(d){auto vt=*reinterpret_cast<void***>(d);DWORD old;VirtualProtect(vt+16,sizeof(void*),PAGE_READWRITE,&old);if(vt[16]!=reinterpret_cast<void*>(hookCreateDevice)){realCreateDevice=reinterpret_cast<CreateDeviceFn>(vt[16]);vt[16]=reinterpret_cast<void*>(hookCreateDevice);}VirtualProtect(vt+16,sizeof(void*),old,&old);}return d;

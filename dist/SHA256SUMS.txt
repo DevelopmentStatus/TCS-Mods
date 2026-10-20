@@ -22,3 +22,4 @@ d156089060a7c1cdd85f9480790be7a946dc67fd1c54b521e3f71865ec2828e1  dist/archive/T
 0b1b7c26e04918666d788c95351ffbeaec53fe1bdb62348bf115bb878bb6ee18  dist/TCSModernOptions-v0.4.0.zip
 7feb1c48b9f2f15b674065073e44581a5dcf86fde9c90b43f227fbbdcb839010  dist/TCSModLoader-v1.0.0.zip
 e48803840bed6dd7cb928cb5378c3aa7b3631a0ce8d5c1f7f962fabe8e22d583  dist/TCSSkipSplash-v1.0.0.zip
+634b29f8fe0d2a23d9d519f0c6811032053f59432e0242aeb829a7fdcde2906d  dist/TCSModLoader-v1.1.0.zip
