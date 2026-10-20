@@ -3,13 +3,13 @@
 #include <cstdint>
 #include <cstring>
 
-// Only for the verified position-independent prologues in ally_damage.h.
-// Both end on instruction boundaries and contain no relative instructions.
+// Only for verified position-independent prologues ending on instruction
+// boundaries, with no relative instructions. Also used by Shop Ownership Fix.
 struct AllyDetour {
     std::uint8_t* site{};
     std::uint8_t* bridge{};
-    std::uint8_t original[8]{};
-    std::uint8_t patched[8]{};
+    std::uint8_t original[16]{};
+    std::uint8_t patched[16]{};
     std::size_t length{};
     static void jump(std::uint8_t* at, const void* to) {
         at[0] = 0xe9;

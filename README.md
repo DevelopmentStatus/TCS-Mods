@@ -15,6 +15,7 @@ Download the ZIPs below using GitHub's **Download raw file** button. Install the
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
 | [TCS Ally Damage](dist/TCSAllyDamage-v1.1.1.zip) | 1.1.1 | Damage eligibility and active combat behavior for AI party companions | [ally_damage.cpp](src/ally_damage.cpp) |
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
+| [Shop Ownership Fix](dist/TCSShopOwnershipFix-v1.0.0.zip) | 1.0.0 | Corrects false unpurchased shop entries for characters already owned, without changing studs or saves | [shop_ownership.cpp](src/shop_ownership.cpp) |
 
 The loader 1.1.0 ZIP is built from the updated source in this repository. The plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
@@ -90,6 +91,20 @@ Provides eight resolution choices from 640 × 480 through 2560 × 1440, windowed
 Skips startup logos, legal splash, opening text, and the startup language-selection page. Required startup assets still load, so a brief black screen can occur. Existing language configuration is retained; configure language before enabling the mod if needed. The title menu and gameplay cutscenes remain available. **Skip splash (restart)** takes effect on the next launch. The plugin checks startup instructions and refuses a conflicting or unsupported patch. No game executable is modified on disk.
 
 ## Settings, removal, and troubleshooting
+
+### Shop Ownership Fix
+
+Drop `TCSShopOwnershipFix-v1.0.0.zip` directly into `Mods` and restart. The plugin
+updates the shop's temporary purchased indicator from existing character ownership.
+It does not change studs, unlock requirements, character ownership or saved shop
+purchase bits. Toggle it under **Pause > Mod Settings > Shop Ownership Fix**.
+Changes apply on the next native shop update. Remove the ZIP with the game closed
+to return to native behavior on restart. Missing or incompatible icon assets are
+a separate issue; this mod does not replace icon textures.
+
+The two shop tests cover synchronization and the actual compiled plugin in an
+isolated synthetic PC memory layout, including enabling/disabling and unchanged
+save bytes. The user confirmed the mod works in their shop on 2026-10-20.
 
 Use the game's up/down controls to select a setting, and confirm or left/right to change it. Use the page row for additional options. Select a key binding and press the desired key; Escape cancels capture. Back/Escape returns through the mod list to the pause menu.
 

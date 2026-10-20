@@ -10,6 +10,7 @@ $components = @(
     @{Name='TCSModernOptions'; Version='0.4.0'; Dll='TCSModernOptions.dll'},
     @{Name='TCSAllyDamage'; Version='1.1.1'; Dll='TCSAllyDamage.dll'},
     @{Name='TCSSkipSplash'; Version='1.0.0'; Dll='TCSSkipSplash.dll'}
+    @{Name='TCSShopOwnershipFix'; Version='1.0.0'; Dll='TCSShopOwnershipFix.dll'}
 )
 foreach ($component in $components) {
     if (!(Test-Path -LiteralPath (Join-Path $BuildPath $component.Dll))) {

@@ -1,4 +1,8 @@
-# Preserved mod downloads
+# Mod downloads
+
+`TCSShopOwnershipFix-v1.0.0.zip` is the optional Shop Ownership Fix plugin, built
+from the included source and confirmed working by the user. Install its ZIP in
+`Mods` without extracting it. See the [main README](../README.md) for details.
 
 The current loader is TCSModLoader-v1.1.0.zip, built with drag-and-drop asset support. TCSModLoader-v1.0.0.zip remains for reference. The four plugin ZIPs are preserved supplied builds. See the [main README](../README.md) for installation, features, and source links. `SHA256SUMS.txt` covers every ZIP here and in `archive/`.
 
