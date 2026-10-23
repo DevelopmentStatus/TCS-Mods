@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cstdio>
+#include <vector>
 
 namespace {
 using OpenFn = int (__cdecl*)(const char*, int, void*, int);
@@ -100,19 +101,26 @@ bool runImporter(const std::wstring& root) {
     HANDLE output=CreateFileW((root+L"Mods\\Assets\\import.log").c_str(),GENERIC_WRITE,FILE_SHARE_READ,
         &security,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(output==INVALID_HANDLE_VALUE)return false;
-    STARTUPINFOW startup{};startup.cb=sizeof(startup);startup.dwFlags=STARTF_USESTDHANDLES|STARTF_USESHOWWINDOW;
-    startup.wShowWindow=SW_HIDE;startup.hStdOutput=startup.hStdError=output;
+    STARTUPINFOW startup{};startup.cb=sizeof(startup);startup.dwFlags=STARTF_USESTDHANDLES;
+    startup.hStdOutput=startup.hStdError=output;
     startup.hStdInput=GetStdHandle(STD_INPUT_HANDLE);
     PROCESS_INFORMATION process{};
     auto directory=root;while(!directory.empty()&&(directory.back()==L'\\'||directory.back()==L'/'))directory.pop_back();
-    std::wstring command=L"\""+exe+L"\" --game \""+directory+L"\"";
+    auto eventName=L"Local\\TCSAssetPriority-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64());
+    HANDLE uiEvent=CreateEventW(nullptr,TRUE,FALSE,eventName.c_str());
+    std::wstring command=L"\""+exe+L"\" --game \""+directory+L"\" --startup-ui --ui-event \""+eventName+L"\"";
     bool started=CreateProcessW(exe.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW,
         nullptr,root.c_str(),&startup,&process)!=FALSE;
-    if(!started){CloseHandle(output);return false;}
-    auto wait=WaitForSingleObject(process.hProcess,180000);
+    if(!started){if(uiEvent)CloseHandle(uiEvent);CloseHandle(output);return false;}
+    // Human review time must not consume the asset extraction watchdog.
+    DWORD workTime=0,wait=WAIT_TIMEOUT;
+    while((wait=WaitForSingleObject(process.hProcess,1000))==WAIT_TIMEOUT) {
+        if(uiEvent && WaitForSingleObject(uiEvent,0)==WAIT_OBJECT_0)continue;
+        if(uiEvent && (workTime+=1000)>=600000)break;
+    }
     if(wait!=WAIT_OBJECT_0){TerminateProcess(process.hProcess,1);WaitForSingleObject(process.hProcess,5000);}
     DWORD code=1;if(wait==WAIT_OBJECT_0)GetExitCodeProcess(process.hProcess,&code);
-    CloseHandle(process.hProcess);CloseHandle(process.hThread);CloseHandle(output);
+    CloseHandle(process.hProcess);CloseHandle(process.hThread);CloseHandle(output);if(uiEvent)CloseHandle(uiEvent);
     return wait==WAIT_OBJECT_0&&code==0;
 }
 void registerPackages(const std::wstring& catalog,const TCSModHost& host) {
@@ -131,6 +139,28 @@ void registerPackages(const std::wstring& catalog,const TCSModHost& host) {
         setting.key="Priority";setting.label="Priority (higher wins, restart)";setting.type=TCS_SETTING_INT;
         setting.defaultValue.integer=100;setting.maximum=1000;
         host.registerSetting(mod,&setting);
+        int variants=GetPrivateProfileIntW(section.c_str(),L"VariantCount",0,catalog.c_str());
+        for(int v=0;v<variants && v<32;++v) {
+            auto prefix=L"Variant"+std::to_wstring(v);
+            wchar_t key[80]{},label[180]{};
+            GetPrivateProfileStringW(section.c_str(),(prefix+L"Key").c_str(),L"",key,80,catalog.c_str());
+            GetPrivateProfileStringW(section.c_str(),(prefix+L"Label").c_str(),L"Variant",label,180,catalog.c_str());
+            int count=GetPrivateProfileIntW(section.c_str(),(prefix+L"Count").c_str(),0,catalog.c_str());
+            if(count<2 || count>128)continue;
+            std::vector<std::string> labels;
+            for(int o=0;o<count;++o) {
+                wchar_t option[128]{};
+                GetPrivateProfileStringW(section.c_str(),(prefix+L"Option"+std::to_wstring(o)).c_str(),L"",option,128,catalog.c_str());
+                labels.push_back(narrow(option));
+            }
+            std::vector<const char*> options;
+            for(auto& text:labels)options.push_back(text.c_str());
+            auto optionKey=narrow(key),optionLabel=narrow(label)+" (restart)";
+            setting.key=optionKey.c_str();setting.label=optionLabel.c_str();setting.type=TCS_SETTING_ENUM;
+            setting.defaultValue.integer=0;setting.minimum=0;setting.maximum=static_cast<float>(count-1);
+            setting.choices=options.data();setting.choiceCount=static_cast<unsigned int>(options.size());
+            host.registerSetting(mod,&setting);
+        }
     }
 }
 }

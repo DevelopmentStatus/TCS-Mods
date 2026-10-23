@@ -1,7 +1,7 @@
 """Inspect/stage legacy TCS asset archives. Never writes into the game.
 
 Uses Windows' bundled tar for RAR; ZIP uses Python's standard library.
-Staging is preparation only: runtime asset overrides are not implemented yet.
+The native loader publishes staged files through its runtime overlay.
 """
 import argparse
 import hashlib
@@ -10,13 +10,25 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import zipfile
+from asset_paths import resolve, variants
 
-MAX_FILE = 128 * 1024 * 1024
-MAX_TOTAL = 512 * 1024 * 1024
-ROOTS = {'CHARS', 'STUFF', 'LEVELS', 'AUDIO', 'AI', 'SCRIPTS'}
+MAX_FILE = 512 * 1024 * 1024
+MAX_TOTAL = 8 * 1024 * 1024 * 1024
+ROOTS = {'CHARS', 'STUFF', 'LEVELS', 'AUDIO', 'AI', 'SCRIPTS', 'CUT', 'MOVIES'}
+ALIASES = {'ICONS': 'STUFF/ICONS', 'TEXT': 'STUFF/TEXT'}
 SHARED = {'CHARS/CHARS.TXT', 'CHARS/COLLECTION.TXT'}
 BARE = {'OBIWANKENOBI_EP3_PC.GHG': 'CHARS/OBIWANKENOBI/OBIWANKENOBI_EP3_PC.GHG'}
 EXTENSIONS = {'.TXT', '.GHG', '.GSC', '.AN3', '.BSA', '.DDS', '.WAV', '.OGG'}
+EXTENSIONS.update({'.SCP', '.RTL', '.GIT', '.GIZ', '.PTL', '.TER', '.BUR',
+                   '.CU2', '.AI2', '.PAK', '.PAR', '.ANM', '.CFG', '.FPK'})
+EXTENSIONS.update({'.BIK', '.FNT', '.CSV'})
+
+
+def profile(targets):
+    # World/level packages carry coordinated global tables. Their roster,
+    # unlocks and translations cannot use the character-only ownership filter.
+    return ('level-pack' if any(t.startswith(('LEVELS/', 'CUT/')) for t in targets)
+            else 'character-assets')
 
 
 def destination(member):
@@ -33,8 +45,8 @@ def destination(member):
         if re.fullmatch(r'(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])', part.split('.')[0], re.I):
             raise ValueError('Reserved Windows filename: ' + member)
     for i, part in enumerate(upper):
-        if part in ROOTS:
-            result = '/'.join(upper[i:])
+        if part in ROOTS or part in ALIASES:
+            result = '/'.join([ALIASES.get(part, part)] + upper[i+1:])
             if PurePosixPath(result).suffix in EXTENSIONS:
                 return result
             return None
@@ -47,6 +59,62 @@ def classify(target):
     if target.startswith('STUFF/TEXT/') or target == 'STUFF/ICONS/STARWARS_ICONS_ALL_PC.GSC':
         return 'shared-resource-review'
     return 'asset'
+
+
+def supplements(archive, files, ignored):
+    """Read declarative game-data snippets, never commands or prose instructions.
+
+    Only records tied to actual supplied character configs are accepted. Real
+    game tables take precedence over document snippets. Do not guess shop rules.
+    """
+    configs, ids = {}, set()
+    existing = {item['target'] for item in files}
+    for item in files:
+        target = item['target']
+        if target.startswith('CHARS/') and target.endswith('.TXT') and target.count('/') >= 2:
+            data = archive.read(item['member']).decode('utf-8-sig', errors='replace')
+            match = re.search(r'^\s*name_id\s*=\s*(\d+)', data, re.I | re.M)
+            if match:
+                configs[PurePosixPath(target).stem] = target
+                ids.add(match[1])
+    roster, shop, language = {}, {}, {}
+    sources = []
+    for member in ignored:
+        if not member.lower().endswith('.txt'):
+            continue
+        if archive.zip and archive.zip.getinfo(member).file_size > 256 * 1024:
+            continue
+        raw = archive.read(member)
+        if len(raw) > 256 * 1024:
+            continue
+        value = raw.decode('utf-8-sig', errors='replace')
+        accepted = False
+        for match in re.finditer(r'^\s*char_start\s*\r?\n(.*?)^\s*char_end\s*$', value, re.I | re.M | re.S):
+            # This narrow grammar only accepts an actual dir/file registration.
+            record = re.fullmatch(r'\s*dir\s+"([^"\r\n]+)"\s+file\s+"([^"\r\n]+)"\s*', match[1], re.I)
+            if record:
+                folder, name = record[1].replace('\\', '/').upper(), record[2].upper()
+                if configs.get(name) == f'CHARS/{folder}/{name}.TXT':
+                    roster[name] = f'char_start\r\n\tdir "{folder}"\r\n\tfile "{name}"\r\nchar_end'
+                    accepted = True
+        for line in value.splitlines():
+            match = re.fullmatch(r'\s*collect\s+"([^"\r\n]+)"((?:[ \t]+(?:[A-Za-z_]\w*|\d+|"[^"\r\n]*"))*)[ \t]*(?://[^\r\n]*)?', line, re.I)
+            if match and match[1].upper() in configs:
+                shop[match[1].upper()] = 'collect "' + match[1] + '"' + match[2]
+                accepted = True
+            # Canonicalize quotes; older guides sometimes omit the closing one.
+            match = re.fullmatch(r'\s*(\d+)[ \t]+"([^"\r\n]*)"?[ \t]*', line)
+            if match and match[1] in ids:
+                language[match[1]] = match[1] + ' "' + match[2].rstrip() + '"'
+                accepted = True
+        if accepted:
+            sources.append(member)
+    generated = {}
+    for target, entries in [('CHARS/CHARS.TXT', roster), ('CHARS/COLLECTION.TXT', shop),
+                            ('STUFF/TEXT/ENGLISH.TXT', language)]:
+        if target not in existing and entries:
+            generated[target] = '\r\n'.join(entries.values()) + '\r\n'
+    return generated, sources
 
 
 class Archive:
@@ -88,20 +156,56 @@ class Archive:
             self.zip.close()
 
 
-def inspect(path):
+def inspect(path, game=None, selections=lambda key: 0):
     archive = Archive(path)
     try:
         files, ignored, seen = [], [], set()
-        for member in archive.members():
+        members = archive.members()
+        if len(members) != len(set(members)):
+            raise ValueError('Duplicate archive member name')
+        direct = {}
+        for member in members:
             target = destination(member)
-            if target is None:
-                ignored.append(member)
+            if target is not None:
+                direct[member] = target
+        texts = {}
+        # Small text records supply registry evidence and self-describing configs.
+        for member in members:
+            if not member.lower().endswith('.txt'):
                 continue
+            if archive.zip and archive.zip.getinfo(member).file_size > 256 * 1024:
+                continue
+            data = archive.read(member)
+            if len(data) <= 256 * 1024:
+                texts[member] = data.decode('utf-8-sig', errors='replace')
+        registries = list(texts.values())
+        loose = [m for m in members if m not in direct and PurePosixPath(m).suffix.upper() in EXTENSIONS]
+        if loose and game is not None and (Path(game) / 'GAME.DAT').is_file():
+            from tcs_dat import Dat
+            registries.append(Dat(Path(game) / 'GAME.DAT').read('CHARS/CHARS.TXT').decode('utf-8-sig'))
+        resolved, inferred = resolve(members, direct, registries, texts)
+        resolved, choices, excluded = variants(resolved, inferred, selections)
+        for member, target in resolved.items():
+            # Inference must pass the same path validation as explicit assets.
+            if destination(target) != target:
+                raise ValueError('Unsafe inferred destination: ' + target)
             if target in seen:
                 raise ValueError('Duplicate destination: ' + target)
             seen.add(target)
             files.append(dict(member=member, target=target, kind=classify(target)))
+        ignored = [m for m in members if m not in resolved and m not in excluded]
+        unresolved = [m for m in ignored if PurePosixPath(m).suffix.upper() in
+                      EXTENSIONS - {'.TXT', '.CSV', '.CFG'}]
+        generated, sources = supplements(archive, files, ignored)
+        for target in generated:
+            files.append(dict(member=None, target=target, kind=classify(target)))
         return dict(archive=str(Path(path).resolve()), files=files, ignored=ignored,
+                    generated=generated, snippet_sources=sources,
+                    inferred=[dict(member=m, target=resolved[m], reason=r)
+                              for m, r in inferred.items() if m in resolved],
+                    variants=choices, excluded_variants=excluded,
+                    unresolved=unresolved,
+                    profile=profile(seen),
                     status='staging-only', runtime_supported=False)
     finally:
         archive.close()
@@ -115,7 +219,9 @@ def stage(report, output):
     total = 0
     try:
         for item in report['files']:
-            data = archive.read(item['member'])
+            data = (report['generated'][item['target']].encode('utf-8-sig'
+                    if item['target'].startswith('STUFF/TEXT/') else 'utf-8')
+                    if item['member'] is None else archive.read(item['member']))
             total += len(data)
             if total > MAX_TOTAL:
                 raise ValueError('Archive exceeds total staging limit')

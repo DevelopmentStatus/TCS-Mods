@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $components = @(
-    @{Name='TCSModLoader'; Version='1.1.0'; Dll='d3d9.dll'},
+    @{Name='TCSModLoader'; Version='1.6.1'; Dll='d3d9.dll'},
     @{Name='TCSFirstPerson'; Version='0.4.0'; Dll='TCSFirstPerson.dll'},
     @{Name='TCSModernOptions'; Version='0.4.0'; Dll='TCSModernOptions.dll'},
     @{Name='TCSAllyDamage'; Version='1.1.1'; Dll='TCSAllyDamage.dll'},
@@ -31,7 +31,17 @@ foreach ($component in $components) {
     Copy-Item -LiteralPath (Join-Path $BuildPath $component.Dll) -Destination $stage
     if ($component.Name -eq 'TCSModLoader') {
         Copy-Item -LiteralPath (Join-Path $BuildPath 'TCSAssetManager.exe') -Destination $stage
-        Copy-Item -LiteralPath (Join-Path $repoPath 'docs') -Destination $stage -Recurse
+        $docsRoot = Join-Path $repoPath 'docs'
+        foreach ($doc in Get-ChildItem -LiteralPath $docsRoot -File -Recurse) {
+            $relativeDoc = $doc.FullName.Substring($docsRoot.Length + 1)
+            if ($relativeDoc.StartsWith('research\', [StringComparison]::OrdinalIgnoreCase) -and
+                $doc.Extension -eq '.md' -and $doc.Name -ne 'asset-overrides.md') {
+                continue
+            }
+            $docTarget = Join-Path (Join-Path $stage 'docs') $relativeDoc
+            New-Item -ItemType Directory -Path (Split-Path -Parent $docTarget) -Force | Out-Null
+            Copy-Item -LiteralPath $doc.FullName -Destination $docTarget
+        }
         $mods = Join-Path $stage 'Mods'
         New-Item -ItemType Directory -Path $mods | Out-Null
         Set-Content -LiteralPath (Join-Path $mods 'README.txt') -Value 'Place plugin ZIPs or supported asset ZIP/RAR archives directly here. Keep them compressed. Remove an archive and restart to restore underlying assets. See docs/ASSET_IMPORT.md.' -Encoding UTF8
