@@ -1,4 +1,4 @@
-# TCS Mod Loader 1.6.1
+# TCS Mod Loader 1.6.4
 
 Supports native DLL plugin ZIPs and legacy TCS asset mods in ZIP/RAR archives.
 
@@ -15,7 +15,24 @@ original DAT asset returns unless another enabled mod replaces the same file.
 Original game DATs are never rewritten. Mods/Assets contains generated caches;
 it is safe to remove that folder while the game is closed.
 
-New in 1.6.1: the window and header show the loader version. The action bar keeps
+New in 1.6.4: a visible preparation window appears before the asset helper starts.
+Unchanged launches reuse the overlay even when default INI settings are written
+or formatting changes. Changed archives, order, enabled state and variants rebuild.
+The first launch after this update rebuilds once; later unchanged launches reuse it.
+
+Also included: DLL-plugin scanning checks the ZIP directory for root manifest.ini
+before extraction. Asset-only ZIPs are no longer extracted a second time into
+Mods/Loaded. Plugin extraction pumps window messages and stops timed-out workers.
+This fixes the duplicate extraction observed during the delayed game startup.
+Update BOTH d3d9.dll and TCSAssetManager.exe. Existing generated caches are retained.
+
+Also included: the game pumps window messages while waiting for asset preparation,
+unchanged archives reuse cached hashes, and a required load-order window is brought
+forward. Startup diagnostics are written to TCSModernOptions.log. This addresses
+loader waits that could leave Steam showing Running before a usable window appears.
+Replace BOTH d3d9.dll and TCSAssetManager.exe when updating.
+
+Also included: the window and header show the loader version. The action bar keeps
 its own space, the lists shrink instead of hiding Launch game, toolbars wrap at
 higher DPI, and minimum size adapts to the screen and scaled controls.
 

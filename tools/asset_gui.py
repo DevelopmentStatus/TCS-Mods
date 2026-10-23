@@ -38,6 +38,8 @@ class LoadOrderWindow:
         self.startup = startup
         self.launch_requested = False
         self.root = tk.Tk()
+        self._topmost_timer = None
+        self.root.bind('<Destroy>', self.cancel_presentation, add='+')
         self.root.title(f'TCS Mod Loader v{VERSION} · Asset load order')
         self.root.geometry(f'{min(1180, self.root.winfo_screenwidth()-48)}x{min(740, self.root.winfo_screenheight()-80)}')
         self.root.minsize(min(980, self.root.winfo_screenwidth()-48), min(640, self.root.winfo_screenheight()-80))
@@ -148,6 +150,27 @@ class LoadOrderWindow:
         if self.packages:
             identity = ordered(self.packages)[0]['id']
             self.mods.selection_set(identity); self.select_mod()
+        self.root.after_idle(self.present)
+
+    def present(self):
+        # Steam/game startup can otherwise leave this modal decision behind them.
+        self.root.deiconify(); self.root.lift()
+        self.root.attributes('-topmost', True)
+        self.root.focus_force()
+        self._topmost_timer = self.root.after(500, self.release_topmost)
+
+    def cancel_presentation(self, event):
+        if event.widget is self.root and self._topmost_timer is not None:
+            try: self.root.after_cancel(self._topmost_timer)
+            except tk.TclError: pass
+            self._topmost_timer = None
+
+    def release_topmost(self):
+        self._topmost_timer = None
+        try:
+            if self.root.winfo_exists(): self.root.attributes('-topmost', False)
+        except tk.TclError:
+            pass
 
     def fit_size(self):
         # Preserve a useful viewport at higher DPI while keeping the window on
@@ -302,9 +325,10 @@ def review(game, packages, rows, force=False, event_name=None, startup=True, on_
         for method in ('SetEvent', 'ResetEvent', 'CloseHandle'):
             getattr(kernel, method).argtypes = [ctypes.c_void_p]
         handle = kernel.OpenEventW(2, False, event_name)
-        if handle: kernel.SetEvent(handle)
     try:
         window = LoadOrderWindow(game, packages, startup=startup)
+        window.root.update_idletasks()
+        if handle: kernel.SetEvent(handle)
         window.root.mainloop()
         if window.launch_requested and on_launch is not None:
             on_launch()

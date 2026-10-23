@@ -85,17 +85,50 @@ def is_plugin(path):
 
 def fingerprint(game, mods):
     digest = hashlib.sha256(f'TCS asset overlay {VERSION}'.encode('utf-8'))
+    cache_path = mods / 'Assets/archive-hashes.json'
+    try:
+        cached = json.loads(cache_path.read_text(encoding='utf-8'))
+        if not isinstance(cached, dict): cached = {}
+    except (OSError, ValueError):
+        cached = {}
+    hashes = {}
     paths = [p for p in mods.iterdir() if p.is_file() and p.suffix.lower() in {'.zip', '.rar'}]
-    paths += list((mods / 'Config').glob('asset_*.ini'))
     for path in sorted(paths, key=lambda p: str(p).casefold()):
         digest.update(str(path.relative_to(mods)).casefold().encode('utf-8'))
-        with path.open('rb') as stream:
-            while chunk := stream.read(1024 * 1024):
-                digest.update(chunk)
+        if path.suffix.lower() in {'.zip', '.rar'}:
+            stat = path.stat()
+            stamp = [stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns]
+            key = path.name.casefold()
+            entry = cached.get(key, {})
+            value = entry.get('sha256') if isinstance(entry, dict) and entry.get('stamp') == stamp else None
+            if not isinstance(value, str) or not re.fullmatch('[0-9a-f]{64}', value):
+                content = hashlib.sha256()
+                with path.open('rb') as stream:
+                    while chunk := stream.read(1024 * 1024): content.update(chunk)
+                value = content.hexdigest()
+            hashes[key] = dict(stamp=stamp, sha256=value)
+            digest.update(value.encode('ascii'))
+        config = configparser.ConfigParser(interpolation=None)
+        config.read(mods / 'Config' / (package_id(path.name).replace('.', '_') + '.ini'), encoding='utf-8-sig')
+        effective = dict(enabled=bool(config.getint('Settings', 'Enabled', fallback=1)),
+                         priority=max(0, min(1000, config.getint('Settings', 'Priority', fallback=100))))
+        # Missing defaults and native/Python INI formatting describe the same order.
+        variants = {key: int(value) for key, value in config.items('Settings')
+                    if key.lower().startswith('variant') and int(value) != 0} if config.has_section('Settings') else {}
+        effective['variants'] = variants
+        digest.update(json.dumps(effective, sort_keys=True).encode('utf-8'))
     dat = game / 'GAME.DAT'
     if dat.exists():
         stat = dat.stat()
         digest.update(str((stat.st_size, stat.st_mtime_ns)).encode())
+    if hashes != cached:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        pending = cache_path.with_name('archive-hashes-' + uuid.uuid4().hex + '.tmp')
+        try:
+            pending.write_text(json.dumps(hashes), encoding='utf-8')
+            os.replace(pending, cache_path)
+        finally:
+            if pending.exists(): pending.unlink()
     return digest.hexdigest()
 
 

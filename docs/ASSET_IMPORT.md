@@ -1,4 +1,4 @@
-# Drag-and-drop asset mods - loader 1.6.1
+# Drag-and-drop asset mods - loader 1.6.3
 
 For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
 
@@ -293,3 +293,63 @@ wrap with the window, and the minimum height accounts for scaled controls within
 screen bounds. Regression checks use nine mods and a variant selector at three
 window sizes and 100%, 150%, and 200% Tk scaling, asserting that version, Auto-sort
 and Launch game remain visible and both lists retain a usable viewport.
+
+
+## Responsive Steam startup (1.6.2)
+
+The importer previously blocked the game thread in a process wait without pumping
+window messages. It now waits on both importer completion and the Windows message
+queue, dispatches window messages, preserves quit requests, and always retains a
+bounded processing timeout even if the review event cannot be created. Human
+review time is still excluded. A required priority editor raises itself briefly
+and takes focus, then releases topmost status. Human-review signaling begins only
+after the actual editor window has been created.
+
+Unchanged archives reuse their SHA-256 from Mods/Assets/archive-hashes.json when
+size, modification time and change/creation time match. Config contents are still
+read every launch. Missing/corrupt caches are regenerated; changed archive metadata
+triggers rehashing. Manually replacing bytes while preserving all metadata can
+require clearing this cache. Asset generation reuse still depends on the resulting
+fingerprint. Cold imports can take longer than cached launches.
+
+TCSModernOptions.log identifies importer start, completion, error or interruption;
+Mods/Assets/import.log contains importer details. Update both native DLL and helper.
+The native regression checks message dispatch during waits, timeout without a review
+event, pause during actual review, and quit preservation. Python checks unchanged
+archives are not reread and modified archives/corrupt caches are handled. This fixes
+confirmed source-level startup risks; the user's intermittent Steam failure has
+not been reproduced in a live game session.
+
+
+## Native-plugin filtering (1.6.3)
+
+Live inspection confirmed a delayed launch after asset import had completed:
+the plugin loader was expanding Modern Overhaul and other asset ZIPs again into
+Mods/Loaded. Its former 15-second wait did not terminate extraction workers.
+The same game process later created a window and reached the Present hook.
+
+Plugin scanning now reads the ZIP central directory to check for a root-level
+manifest.ini before running extraction. Asset-only ZIPs are skipped without
+PowerShell or decompression. Native DLL plugins use standard non-ZIP64 ZIPs with
+a root manifest. Plugin extraction uses a responsive, bounded two-minute wait and
+terminates a timed-out worker. Tests classify actual Modern Overhaul/Mandalorian
+archives as assets and First Person/Skip Splash archives as plugins, in addition
+to synthetic root/nested/case/malformed-directory cases. All 13 native tests pass.
+
+This prevents the second asset extraction but does not automatically remove old
+Mods/Loaded asset copies or older Mods/Assets generations. Those generated folders
+can be cleared with the game and importer closed; keep Mods/Config and mod archives.
+Do not infer every byte of an installed game folder is disposable cache.
+
+
+## Visible preparation and cache reuse (1.6.4)
+
+A native preparation window appears before the Python helper starts, stays responsive
+while it runs, hides for load-order review, and closes when preparation finishes.
+Large changed packages still require an import; the window does not report a percent.
+
+The overlay fingerprint now uses effective enabled state, bounded priority and
+non-default variant selections per installed archive. INI formatting, newly written
+defaults and stale configs for removed archives no longer invalidate the overlay.
+Archive hashes retain the metadata cache described above. Version changes trigger
+one rebuild. Twenty-five Python and thirteen native regression tests pass.

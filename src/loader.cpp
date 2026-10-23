@@ -1,5 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "zip_manifest.h"
+#include "startup_wait.h"
 #include <windows.h>
 #include <windowsx.h>
 #include <d3d9.h>
@@ -329,9 +331,13 @@ bool extractZip(const std::wstring& zip,const std::wstring& dest){
     std::wstring command=L"powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command \"if(Test-Path -LiteralPath "+psQuote(dest)+L"){Remove-Item -LiteralPath "+psQuote(dest)+L" -Recurse -Force}; New-Item -ItemType Directory -Path "+psQuote(dest)+L" -Force | Out-Null; Expand-Archive -LiteralPath "+psQuote(zip)+L" -DestinationPath "+psQuote(dest)+L" -Force\"";
     STARTUPINFOW si{};si.cb=sizeof(si);si.dwFlags=STARTF_USESHOWWINDOW;si.wShowWindow=SW_HIDE;PROCESS_INFORMATION pi{};
     if(!CreateProcessW(nullptr,command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,root.c_str(),&si,&pi))return false;
-    DWORD wait=WaitForSingleObject(pi.hProcess,15000);DWORD code=1;if(wait==WAIT_OBJECT_0)GetExitCodeProcess(pi.hProcess,&code);CloseHandle(pi.hThread);CloseHandle(pi.hProcess);return wait==WAIT_OBJECT_0&&code==0;
+    DWORD wait=WaitForAssetStartup(pi.hProcess,nullptr,120000);DWORD code=1;
+    if(wait==WAIT_OBJECT_0)GetExitCodeProcess(pi.hProcess,&code);
+    else {TerminateProcess(pi.hProcess,1);WaitForSingleObject(pi.hProcess,5000);log("Plugin extractor stopped after timeout/interruption");}
+    CloseHandle(pi.hThread);CloseHandle(pi.hProcess);return wait==WAIT_OBJECT_0&&code==0;
 }
 void loadZip(const std::wstring& zip,const std::wstring& filename){
+    if(!ZipHasRootManifest(zip))return;
     std::wstring stem=filename.substr(0,filename.size()-4);for(auto& c:stem)if(!((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'_'||c==L'-'))c=L'_';
     std::wstring dest=root+L"Mods\\Loaded\\"+stem; if(!extractZip(zip,dest)){log("Could not extract mod archive; skipping it");return;}
     std::wstring manifest=dest+L"\\manifest.ini",idBuf[1];wchar_t id[256]{},entry[260]{};

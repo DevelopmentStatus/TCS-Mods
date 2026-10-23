@@ -34,6 +34,42 @@ def write_dat(path, files):
 
 
 class ManagerTests(unittest.TestCase):
+    def test_unchanged_archives_are_not_rehashed_each_launch(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:
+            game = Path(folder); mods = game / 'Mods'; mods.mkdir()
+            archive = mods / 'large.zip'; archive.write_bytes(b'archive data')
+            first = manager.fingerprint(game, mods)
+            original_open = Path.open
+            def guarded(path, *args, **kwargs):
+                if path == archive:
+                    raise AssertionError('Unchanged archive was read again')
+                return original_open(path, *args, **kwargs)
+            with patch.object(Path, 'open', new=guarded):
+                self.assertEqual(first, manager.fingerprint(game, mods))
+            archive.write_bytes(b'updated archive data')
+            self.assertNotEqual(first, manager.fingerprint(game, mods))
+            (mods / 'Assets/archive-hashes.json').write_text('invalid json')
+            self.assertNotEqual(first, manager.fingerprint(game, mods))
+
+    def test_cache_uses_effective_settings_and_ignores_written_defaults(self):
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:
+            game = Path(folder); mods = game / 'Mods'; mods.mkdir()
+            (mods / 'test.zip').write_bytes(b'archive')
+            first = manager.fingerprint(game, mods)
+            config = mods / 'Config'; config.mkdir()
+            ini = config / (manager.package_id('test.zip').replace('.', '_') + '.ini')
+            ini.write_text('[Settings]\nEnabled=1\nPriority=100\nVariant0=0\n')
+            self.assertEqual(first, manager.fingerprint(game, mods))
+            ini.write_text('[Settings]\nenabled = 1\npriority = 100\nvariant0 = 0\n')
+            self.assertEqual(first, manager.fingerprint(game, mods))
+            ini.write_text('[Settings]\nEnabled=1\nPriority=500\n')
+            self.assertNotEqual(first, manager.fingerprint(game, mods))
+            ini.write_text('[Settings]\nVariant0=1\n')
+            self.assertNotEqual(first, manager.fingerprint(game, mods))
+            ini.write_text('[Settings]\nEnabled=0\n')
+            self.assertNotEqual(first, manager.fingerprint(game, mods))
+
     def test_cached_startup_review_saves_and_rebuilds_before_return(self):
         from asset_conflicts import save_settings
         with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:

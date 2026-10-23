@@ -1,6 +1,7 @@
 #define NOMINMAX
 #include "asset_overlay.h"
 #include "ally_detour.h"
+#include "startup_wait.h"
 #include <filesystem>
 #include <unordered_map>
 #include <algorithm>
@@ -109,17 +110,33 @@ bool runImporter(const std::wstring& root) {
     auto eventName=L"Local\\TCSAssetPriority-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64());
     HANDLE uiEvent=CreateEventW(nullptr,TRUE,FALSE,eventName.c_str());
     std::wstring command=L"\""+exe+L"\" --game \""+directory+L"\" --startup-ui --ui-event \""+eventName+L"\"";
+    // This exists before Python unpacks, so Steam startup never looks invisible.
+    WNDCLASSW statusClass{};
+    statusClass.lpfnWndProc=DefWindowProcW;
+    statusClass.hInstance=GetModuleHandleW(nullptr);
+    statusClass.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);
+    statusClass.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));
+    statusClass.lpszClassName=L"TCSAssetPreparation";
+    RegisterClassW(&statusClass);
+    HWND progress=CreateWindowExW(WS_EX_APPWINDOW,statusClass.lpszClassName,L"TCS Mod Loader 1.6.4 - Preparing mods",
+        WS_OVERLAPPED|WS_CAPTION|WS_VISIBLE, CW_USEDEFAULT,CW_USEDEFAULT,540,160,
+        nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+    if(progress) {
+        CreateWindowW(L"STATIC",L"Preparing game assets...\n\nLarge or changed mod packs can take a few minutes.\nThe game will open automatically when preparation finishes.",
+            WS_CHILD|WS_VISIBLE,20,20,490,100,progress,nullptr,GetModuleHandleW(nullptr),nullptr);
+        UpdateWindow(progress);
+    }
     bool started=CreateProcessW(exe.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW,
         nullptr,root.c_str(),&startup,&process)!=FALSE;
-    if(!started){if(uiEvent)CloseHandle(uiEvent);CloseHandle(output);return false;}
+    if(!started){if(progress)DestroyWindow(progress);if(uiEvent)CloseHandle(uiEvent);CloseHandle(output);return false;}
     // Human review time must not consume the asset extraction watchdog.
-    DWORD workTime=0,wait=WAIT_TIMEOUT;
-    while((wait=WaitForSingleObject(process.hProcess,1000))==WAIT_TIMEOUT) {
-        if(uiEvent && WaitForSingleObject(uiEvent,0)==WAIT_OBJECT_0)continue;
-        if(uiEvent && (workTime+=1000)>=600000)break;
-    }
+    logger("Preparing asset mods; waiting for importer or load-order review");
+    DWORD wait=WaitForAssetStartup(process.hProcess,uiEvent,600000,progress);
+    if(progress)DestroyWindow(progress);
     if(wait!=WAIT_OBJECT_0){TerminateProcess(process.hProcess,1);WaitForSingleObject(process.hProcess,5000);}
     DWORD code=1;if(wait==WAIT_OBJECT_0)GetExitCodeProcess(process.hProcess,&code);
+    if(wait!=WAIT_OBJECT_0)logger("Asset startup interrupted or timed out; importer stopped");
+    else logger(code==0?"Asset preparation completed":"Asset importer returned an error; see Mods/Assets/import.log");
     CloseHandle(process.hProcess);CloseHandle(process.hThread);CloseHandle(output);if(uiEvent)CloseHandle(uiEvent);
     return wait==WAIT_OBJECT_0&&code==0;
 }
