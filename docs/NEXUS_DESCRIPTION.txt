@@ -156,4 +156,4 @@ To remove the loader itself, close the game and remove its d3d9.dll, TCSAssetMan
 [b][size=4]Credits and links[/size][/b]
 Part of the [url=https://github.com/DevelopmentStatus/TCS-Mods]TCS-Mods project[/url]. All other mods belong to their respective authors. License information for the included tools is supplied with the download.
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases]Version history[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods/issues]Report a problem[/url]
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases]Version history[/url] | [url=https://www.nexusmods.com/legostarwarsthecompletesaga/mods/213?tab=bugs]Report a problem[/url]
