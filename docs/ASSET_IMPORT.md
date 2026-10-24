@@ -1,4 +1,4 @@
-# Drag-and-drop asset mods - loader 1.6.3
+# Drag-and-drop asset mods - loader 1.6.5
 
 For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
 
@@ -15,6 +15,15 @@ For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
 No QuickBMS or separate Python installation is needed. The packaged helper
 includes Python and uses the Windows built-in tar.exe to read RAR files.
 The first import takes longer; unchanged archives/settings reuse the overlay.
+
+In 1.6.5, Manage Mod Priorities.cmd opens before asset extraction. A broken or
+unsupported archive appears with an Import error label; select it for the reason,
+then disable it and save or replace the archive. Disabled archives are not opened
+or staged. Saving/closing the manual editor does not build an overlay. Launch game
+builds the enabled selection before starting the game. Failures list the archive,
+reason and full report.json path; include that report when requesting support.
+Startup waits service the preparation window and defer game messages until
+Direct3D initialization resumes.
 
 ## Removal and conflicts
 

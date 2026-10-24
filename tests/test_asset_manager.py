@@ -34,6 +34,43 @@ def write_dat(path, files):
 
 
 class ManagerTests(unittest.TestCase):
+    def test_bad_archive_is_editable_and_disabled_archives_are_not_opened(self):
+        from unittest.mock import patch
+        from asset_conflicts import save_settings
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:
+            game = Path(folder); mods = game / 'Mods'; mods.mkdir()
+            (mods / 'broken.zip').write_bytes(b'not a zip file')
+            packages = manager.scan_packages(game)
+            self.assertEqual(len(packages), 1)
+            self.assertIn('error', packages[0])
+            self.assertEqual(packages[0]['status'], 'failed')
+            with self.assertRaises(manager.AssetImportError) as failure:
+                manager.build(game)
+            self.assertIn('broken.zip:', str(failure.exception))
+            self.assertIn('Full report:', str(failure.exception))
+            self.assertFalse((mods / 'Assets/catalog.ini').exists())
+            packages[0]['enabled'] = False
+            save_settings(game, packages)
+            with patch('asset_manager.is_plugin', side_effect=AssertionError('Disabled archive was opened')):
+                result = manager.build(game)
+            self.assertTrue(result['complete'])
+            self.assertFalse(result['packages'][0]['enabled'])
+
+    def test_startup_review_can_disable_broken_archive_and_publish_healthy_mod(self):
+        from asset_conflicts import save_settings
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:
+            game = Path(folder); mods = game / 'Mods'; mods.mkdir()
+            (mods / 'broken.zip').write_bytes(b'invalid')
+            with zipfile.ZipFile(mods / 'good.zip', 'w') as archive:
+                archive.writestr('CHARS/HERO/HERO_PC.GHG', b'healthy')
+            def review(game_path, packages, rows):
+                broken = next(p for p in packages if p.get('error'))
+                broken['enabled'] = False
+                return save_settings(game_path, packages)
+            result = manager.build(game, review=review)
+            self.assertTrue(result['complete'])
+            self.assertEqual((Path(result['active']) / 'CHARS/HERO/HERO_PC.GHG').read_bytes(), b'healthy')
+
     def test_unchanged_archives_are_not_rehashed_each_launch(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:

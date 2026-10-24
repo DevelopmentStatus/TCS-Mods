@@ -47,7 +47,28 @@ class LaunchTests(unittest.TestCase):
                 self.assertEqual(args[0], [str(game.resolve() / 'LEGOStarWarsSaga.exe')])
                 self.assertEqual(kwargs['cwd'], str(game.resolve()))
                 self.assertEqual(kwargs['env']['TCS_PRIORITY_REVIEWED'], 'signature')
+                self.assertEqual(kwargs['env']['PYINSTALLER_RESET_ENVIRONMENT'], '1')
             self.assertEqual(os.environ.get('TCS_PRIORITY_REVIEWED'), previous)
+
+    def test_manual_editor_opens_with_import_errors_without_building_or_launching(self):
+        with tempfile.TemporaryDirectory() as folder:
+            mods = Path(folder) / 'Mods'; mods.mkdir()
+            (mods / 'broken.zip').write_bytes(b'broken')
+            with patch.object(sys, 'argv', ['asset_manager', '--game', folder, '--manage']), \
+                    patch('asset_gui.review', return_value=False) as editor, \
+                    patch('asset_manager.build', side_effect=AssertionError('Unexpected extraction')), \
+                    patch('asset_manager.launch_game') as launch, patch('builtins.print'):
+                self.assertEqual(manager.main(), 0)
+                self.assertIn('error', editor.call_args.args[1][0])
+                launch.assert_not_called()
+
+    def test_startup_error_opens_editor_even_without_overlapping_files(self):
+        broken = package(1); broken.update(files=[], error='Invalid archive')
+        with patch('asset_gui.LoadOrderWindow') as window:
+            window.return_value.changed = False
+            window.return_value.launch_requested = False
+            self.assertFalse(review('.', [broken], []))
+            window.assert_called_once()
 
     def test_manual_launch_happens_after_overlay_and_startup_does_not_duplicate_game(self):
         with tempfile.TemporaryDirectory() as folder:

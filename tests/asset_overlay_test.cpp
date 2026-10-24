@@ -41,6 +41,16 @@ int main() {
     PostMessageW(startupWindow,WM_APP+1,0,0);
     HANDLE worker=CreateThread(nullptr,0,completeStartup,finished,0,nullptr);
     CHECK(WaitForAssetStartup(finished,reviewing,30)==WAIT_OBJECT_0);
+    // Game messages stay queued until graphics initialization can finish.
+    CHECK(!startupMessageHandled);
+    MSG deferred{};CHECK(PeekMessageW(&deferred,startupWindow,WM_APP+1,WM_APP+1,PM_REMOVE));
+    DispatchMessageW(&deferred);CHECK(startupMessageHandled);
+    WaitForSingleObject(worker,1000);CloseHandle(worker);
+    startupMessageHandled=false;
+    ResetEvent(finished);
+    PostMessageW(startupWindow,WM_APP+1,0,0);
+    worker=CreateThread(nullptr,0,completeStartup,finished,0,nullptr);
+    CHECK(WaitForAssetStartup(finished,reviewing,30,startupWindow)==WAIT_OBJECT_0);
     CHECK(startupMessageHandled);
     WaitForSingleObject(worker,1000);CloseHandle(worker);
     ResetEvent(finished);ResetEvent(reviewing);

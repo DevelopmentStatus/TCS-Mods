@@ -1,89 +1,145 @@
 [center][size=6][b]TCS MOD LOADER[/b][/size]
-[size=4]Version 1.6.4[/size]
-Install supported mods. Manage conflicts. Choose what loads last.[/center]
+[size=4]Version 1.6.5[/size]
+An easier way to use mods in LEGO Star Wars: The Complete Saga.[/center]
 
-[b][size=4]One loader for your TCS mod collection[/size][/b]
-TCS Mod Loader brings native plugins and supported legacy asset mods together for LEGO Star Wars: The Complete Saga on PC. Keep mod archives in a single folder, control their load order, and use an in-game settings menu without rewriting the original game DAT files.
+[line]
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.6.4]Download / release notes[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Source code and documentation[/url]
+[b][size=4]About this mod[/size][/b]
+TCS Mod Loader lets you add supported mods by putting their ZIP or RAR files into one folder. It can load character packs, character replacements, extra levels, music and more, along with plugins made for this loader.
 
-[b][size=4]Features[/size][/b]
+You can turn supported mods on or off, change their settings, and choose which mod takes priority when two mods change the same files. Your original game DAT files stay untouched.
+
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.6.5]Download version 1.6.5[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
+
+[line]
+
+[b][size=4]What it does[/size][/b]
 [list]
-[*][b]ZIP/RAR asset importing:[/b] supported character packs, model replacements, level/world packs, music, cutscenes, fonts and other recognized game assets.
-[*][b]General archive detection:[/b] identifies supported game folders and infers loose character destinations from game registries and neighboring files. Compatibility is based on archive structure, rather than a list of filenames.
-[*][b]Legacy character data:[/b] imports supported roster, shop and name records associated with supplied characters, including data snippets bundled in TXT documentation. Installation commands are never executed.
-[*][b]Load-order editor:[/b] drag mods, change priorities, enable or disable asset packs, choose supported variants, and inspect overlapping files.
-[*][b]Automatic conflict review:[/b] the startup editor opens when enabled mods overlap and two or more providers have equal priorities.
-[*][b]Auto-sort:[/b] suggests broad packs before focused replacements and assigns unique priorities.
-[*][b]In-game settings:[/b] access registered plugin settings and asset controls through Pause > Mod Settings.
-[*][b]Clearer startup:[/b] a preparation window appears while assets are prepared. Unchanged launches reuse cached assets.
-[*][b]Bundled tools:[/b] no separate Python or QuickBMS installation required.
+[*]Loads supported mod ZIP and RAR files without you having to unpack them.
+[*]Works with supported character packs, replacements, level packs, music and other game files.
+[*]Works out where supported mod files belong, including some packs with loose files or unusual folders.
+[*]Adds characters to the character list and shop when a supported pack includes the needed information.
+[*]Lets you choose between different looks included in supported character packs.
+[*]Includes a load-order window where you can drag mods into order, turn them on or off, and see which ones change the same files.
+[*]Includes an Auto-sort button to suggest a starting order.
+[*]Adds a Mod Settings menu to the pause menu for supported mods.
+[*]Shows a preparation window while getting your mods ready. If nothing has changed, it reuses the files it already prepared.
+[*]No separate Python or QuickBMS download is needed.
 [/list]
 
-[b][size=4]Installation[/size][/b]
+[line]
+
+[b][size=4]How to install[/size][/b]
 [list=1]
-[*]Close the game and open its installation folder, containing LEGOStarWarsSaga.exe.
-[*]Back up any existing d3d9.dll, then extract the loader download into that folder.
-[*]Check that [b]d3d9.dll[/b], [b]TCSAssetManager.exe[/b] and [b]Manage Mod Priorities.cmd[/b] sit beside LEGOStarWarsSaga.exe. When updating, replace both the DLL and helper.
-[*]Place supported mod ZIP/RAR archives directly inside [b]Mods[/b]. Keep those archives compressed. Native plugin packages require their loader manifest and DLL layout.
-[*]Start the game normally. Large or changed asset packs may take several minutes to prepare. The game continues automatically when preparation finishes, unless load-order review needs your input.
+[*]Close the game.
+[*]Open the game folder. This is the folder with [b]LEGOStarWarsSaga.exe[/b] in it.
+[*]If that folder already has a [b]d3d9.dll[/b] file, make a backup of it first.
+[*]Download the loader ZIP from the [url=https://www.nexusmods.com/legostarwarsthecompletesaga/mods/213?tab=files]Files tab[/url].
+[*]Open the downloaded ZIP to see the files inside. If you cannot open it, you can install a program such as 7-Zip or WinRAR. I recommend [url=https://7-zip.org/download.html]7-Zip[/url].
+[*]Select all the files and folders inside the loader ZIP, then drag and drop them into the game folder. [b]d3d9.dll[/b], [b]TCSAssetManager.exe[/b] and [b]Manage Mod Priorities.cmd[/b] should be beside LEGOStarWarsSaga.exe.
+[*]Put your supported mod ZIP or RAR files directly into the [b]Mods[/b] folder. Leave them zipped.
+[*]Start the game as usual. Large mods can take a few minutes to get ready the first time, or after you change them.
 [/list]
+[b]Updating from an older version?[/b] Close the game and replace both d3d9.dll and TCSAssetManager.exe. Keep your mod downloads and saved settings.
 
-[b][size=4]Using the loader[/size][/b]
-[b]In-game:[/b] open Pause > Mod Settings. Asset enabled state, priority and variant changes apply after restarting.
+[line]
 
-[b]Manual load-order editing:[/b] close the game and double-click Manage Mod Priorities.cmd. Higher priority loads later and wins ordinary file replacements. Drag a mod or use the arrow buttons to adjust its order.
+[b][size=4]Choosing which mod loads last[/size][/b]
+Close the game and double-click [b]Manage Mod Priorities.cmd[/b] to open the load-order window.
 
-[b]Save settings[/b] saves without closing the editor. [b]Launch game[/b] saves and continues the waiting game; from the manual editor, it prepares the assets and starts the game. Closing the editor discards unsaved changes.
-
-[b]Auto-sort is a starting point.[/b] It uses package structure and file coverage. Follow each mod author's requirements and place addons after their required base mod.
-
-[b][size=4]Compatibility[/size][/b]
-Validated against the x86 Steam game build on 64-bit Windows 10/11. Other executable versions have not been validated.
-
-Supported import layouts include those used by Additional Levels 2.3.1, Additional Levels for Modern Overhaul 1.4, Modern Overhaul 2.2.2, The Mandalorian Season 2 Character Pack and Clones. Related archives use the same general importer; individual mods can still require dependencies or an import adapter. Import support does not guarantee every combination will work together in gameplay.
+Drag mods into order or use the arrow buttons. [b]A higher priority number means a mod loads later.[/b] If two mods replace the same file, the one that loads later usually wins.
 
 [list]
-[*]Install only one Additional Levels variant. Its Modern Overhaul variant requires Modern Overhaul; give the addon a higher priority than the base overhaul.
-[*]Character tables can merge supported records belonging to supplied characters. Level-pack shared tables remain full replacements, resolved by priority.
-[*]Supported archive limits are 8 GiB extracted per package and 512 MiB per file.
-[*]The overlap viewer checks asset files. It cannot detect DLL hook conflicts or missing mod dependencies.
-[*]Other mods that install their own d3d9.dll may conflict with this loader. Check their installation instructions before replacing it.
-[*]The loader includes no third-party mod archives or game assets. Download those separately from their authors.
+[*][b]Auto-sort[/b] suggests an order, usually putting large packs before smaller replacements. Always follow the mod author's instructions too.
+[*][b]Save settings[/b] saves your changes and keeps the window open.
+[*][b]Launch game[/b] saves your changes and starts the game, or continues the game if it is already waiting for you.
+[*]Closing the window without saving keeps your previous settings.
+[/list]
+The window opens automatically at startup only when enabled mods change the same files and have matching priority numbers. You can still open it yourself at any time with the game closed.
+
+[line]
+
+[b][size=4]In-game settings[/size][/b]
+Open [b]Pause > Mod Settings[/b] to see the settings offered by your installed mods. Restart the game after changing an asset mod's on/off setting, priority or character look.
+
+[line]
+
+[b][size=4]Which mods work?[/size][/b]
+The loader has been checked with the Steam version of the game on 64-bit Windows 10 and 11. Other game versions have not been checked.
+
+It supports the file layouts used by:
+[list]
+[*]Additional Levels 2.3.1
+[*]Additional Levels for Modern Overhaul 1.4
+[*]Modern Overhaul 2.2.2
+[*]The Mandalorian Season 2 Character Pack
+[*]Clones
+[/list]
+[b]Support is not limited to these names.[/b] Other mods with similar supported files and folders can work too. Some mods still need extra support, and being able to load two mods does not mean they will work together perfectly.
+
+[list]
+[*]Install only one version of Additional Levels. The Modern Overhaul version needs Modern Overhaul installed, with Additional Levels loading after it.
+[*]Always check whether a mod needs another mod to work. Put addons after the mod they depend on.
+[*]Some character information can be combined. Level packs may replace shared files completely, so changing the order cannot fix every conflict.
+[*]The conflict list shows mods that change the same game files. It cannot find every problem between plugins or tell you about every missing requirement.
+[*]Mods that come with their own d3d9.dll may clash with this loader. Read their instructions before replacing that file.
+[*]Mods larger than 8 GiB when unpacked, or containing a single file larger than 512 MiB, exceed the loader's limits.
+[*]Other people's mods are not included. Download them separately from their authors.
 [/list]
 
-[b][size=4]Troubleshooting[/size][/b]
+[line]
+
+[b][size=4]Help and common questions[/size][/b]
 [spoiler]
-[b]Steam says Running, but no game window has appeared[/b]
-Look for the preparation window or load-order editor. A cold import of a large pack can take minutes. Version 1.6.4 prevents the confirmed duplicate extraction of asset ZIPs and avoids rebuilds caused solely by INI formatting or written defaults. Replace both loader files when updating.
+[b]Steam says the game is running, but I cannot see it[/b]
+Look for the preparation window or load-order window. A large mod pack can take a few minutes to get ready. Version 1.6.4 fixes unnecessary repeat work that could make startup much slower. Make sure you replaced both loader files when updating.
 
-[b]Characters are missing from the shop[/b]
-Check that the pack is enabled, its required data is present, and another mod is not replacing its shared tables. Restart after changing settings. Some packs or combinations require additional compatibility work; the loader cannot invent missing shop records.
+[b]Manage Mod Priorities.cmd reports an asset import error[/b]
+Version 1.6.5 opens the editor before extracting assets. Failed archives appear in the list with an Import error label. Select one to read the reason, then disable it and save or replace its download. Saving or closing the manual editor does not rebuild assets. If you need help, send the [b]report.json[/b] named in the error as well as the logs.
 
-[b]A replacement loses to another mod[/b]
-Open the priority editor, inspect the overlapping files, and give the desired mod a higher priority. Follow dependency requirements before using Auto-sort.
+[b]My new characters are not in the shop[/b]
+Make sure the character pack is turned on and that you installed everything it needs. Another mod may be replacing the files it uses. Check the load order and restart after changing it. Some packs still need extra support before their characters can appear in the shop.
 
-[b]The priority editor does not open automatically[/b]
-Automatic review requires overlapping enabled mods with equal priorities. Use Manage Mod Priorities.cmd to open it manually.
+[b]I see the wrong character model or replacement[/b]
+Check which mods change the same files in the load-order window. Give the mod you want to use a higher priority number. If it offers different looks, check which one you selected.
 
-[b]Generated files are using substantial disk space[/b]
-Old overlay generations and earlier duplicate extractions are retained; updating does not automatically clean them. With the game and helper closed, Mods/Assets is a generated cache that can be removed and rebuilt. Keep Mods/Config and your mod archives. Do not delete the game installation folder to clear the cache.
+[b]The load-order window does not open when I start the game[/b]
+That is normal if no overlapping mods have matching priorities. To open it yourself, close the game and double-click Manage Mod Priorities.cmd.
 
-[b]An import fails[/b]
-Check Mods/Assets/import.log and TCSModernOptions.log. Confirm the archive uses a supported layout, fits the limits, and has its dependencies. Include the archive version and relevant logs when reporting an issue.
+[b]The loader is using a lot of disk space[/b]
+The loader keeps prepared files, including older copies. Updating does not remove those automatically. With the game and TCSAssetManager closed, you can delete [b]Mods/Assets[/b] to clear its saved files. The loader will prepare them again next time. Keep [b]Mods/Config[/b] and your mod ZIP/RAR files. Do not delete the whole game folder.
+
+[b]A mod will not load[/b]
+Check the mod author's instructions and make sure you have any other mods it needs. For help, include the mod's name and version, plus [b]Mods/Assets/import.log[/b] and [b]TCSModernOptions.log[/b] when reporting the problem.
 [/spoiler]
 
-[b][size=4]Removing the loader or a mod[/size][/b]
-Close the game. To remove an asset mod, remove its archive from Mods and restart; the overlay rebuilds using the remaining packs. To remove the loader, remove its d3d9.dll, TCSAssetManager.exe and management script, or restore your backed-up DLL. Preserve anything you want to keep from Mods.
+[line]
 
-[b][size=4]What's new in 1.6.4[/size][/b]
+[b][size=4]Removing mods[/size][/b]
+Close the game, remove the mod's ZIP or RAR file from Mods, then start the game again. The loader will prepare the remaining mods.
+
+To remove the loader itself, close the game and remove its d3d9.dll, TCSAssetManager.exe and Manage Mod Priorities.cmd. Restore your old d3d9.dll if you backed one up. Keep any mods or settings you want to save.
+
+[line]
+
+[b][size=4]New in version 1.6.5[/size][/b]
 [list]
-[*]Visible preparation window before the asset helper starts.
-[*]Overlay reuse compares effective settings, so written defaults and INI formatting no longer force another import.
-[*]Includes the startup fixes developed since 1.6.1: cached archive hashes, responsive waits, foreground conflict review and filtering asset ZIPs out of native-plugin extraction.
+[*]Changes the startup wait so queued game messages stay available until graphics initialization resumes, addressing a possible cause of the missing window after load-order review.
+[*]The priority editor opens even when an archive cannot be imported, shows its error and lets you disable it.
+[*]Disabled archives are skipped. Saving or closing the manual editor no longer rebuilds assets; Launch game prepares the enabled selection first.
+[*]Import failures show the archive name and reason, plus the full report path. Startup logs now show the graphics initialization stages.
 [/list]
 
-[b][size=4]Credits and source[/size][/b]
-Developed through the [url=https://github.com/DevelopmentStatus/TCS-Mods]TCS-Mods project[/url]. Credit for third-party mods belongs to their respective authors. Bundled runtime license notices are included in the download.
+[b][size=4]Earlier fixes in version 1.6.4[/size][/b]
+[list]
+[*]A preparation window appears while the loader gets your mods ready.
+[*]Small changes to how settings are saved no longer make it prepare all your mods again.
+[*]Includes fixes for slow startup, unnecessary unpacking of large mods, and the load-order window appearing behind other windows.
+[/list]
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases]Full release history[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods/issues]Report an issue[/url]
+[line]
+
+[b][size=4]Credits and links[/size][/b]
+Part of the [url=https://github.com/DevelopmentStatus/TCS-Mods]TCS-Mods project[/url]. All other mods belong to their respective authors. License information for the included tools is supplied with the download.
+
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases]Version history[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods/issues]Report a problem[/url]

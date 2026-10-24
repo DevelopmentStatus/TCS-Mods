@@ -380,9 +380,10 @@ VirtualProtect(vt+16,sizeof(void*)*27,old,&old);hookedDevice=d;}
     SetPropW(w,L"TCSOriginalProc",reinterpret_cast<HANDLE>(SetWindowLongPtrW(w,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(GameProc))));
 }
 HRESULT STDMETHODCALLTYPE hookCreateDevice(IDirect3D9* self,UINT adapter,D3DDEVTYPE type,HWND window,DWORD flags,D3DPRESENT_PARAMETERS* p,IDirect3DDevice9** out) {
+    log("Creating game graphics device");
     gameWindow=window;D3DPRESENT_PARAMETERS original=*p;applyStyle(p);auto hr=realCreateDevice(self,adapter,type,window,flags,p,out);
     if(FAILED(hr)){*p=original;if(videoOptionsLoaded){width=1280;height=720;windowMode=0;activeWindowMode=0;vsync=1;fpsCap=0;setWindowStyle();applyWindow(p);writeOptions();}log("Configured device creation failed; retrying the game's original display parameters");hr=realCreateDevice(self,adapter,type,window,flags,p,out);}
-    if(SUCCEEDED(hr)&&out&&*out){presentation=*p;deviceCreated(window,*out);}return hr;
+    if(SUCCEEDED(hr)&&out&&*out){presentation=*p;deviceCreated(window,*out);log("Game graphics device ready");}return hr;
 }
 void loadCoreConfig(){optionsConfig=iniPath(L"TCSModLoader.ini");}
 }
@@ -390,7 +391,9 @@ void loadCoreConfig(){optionsConfig=iniPath(L"TCSModLoader.ini");}
 extern "C" IDirect3D9* WINAPI ProxyCreate9(UINT version) {
     static bool initialized=false;
     if(!realD3D){wchar_t path[MAX_PATH];GetSystemDirectoryW(path,MAX_PATH);wcscat_s(path,L"\\d3d9.dll");realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;timeBeginPeriod(1);logFile=_fsopen("TCSModernOptions.log","w",_SH_DENYNO);wchar_t exe[MAX_PATH];GetModuleFileNameW(nullptr,exe,MAX_PATH);wchar_t* slash=wcsrchr(exe,L'\\');if(slash){slash[1]=0;root=exe;}if(!initialized){initialized=true;loadCoreConfig();PrepareAssetOverlay(root,host,log);loadPlugins();log("TCS Modern Options loader initialized");}}
+    log("Creating native Direct3D9 interface");
     auto fn=reinterpret_cast<IDirect3D9*(WINAPI*)(UINT)>(GetProcAddress(realD3D,"Direct3DCreate9"));auto d=fn(version);
+    log(d?"Native Direct3D9 interface ready":"Native Direct3D9 interface failed");
     // The loader owns Mod Settings, including when no optional mods are installed.
     if(d){auto vt=*reinterpret_cast<void***>(d);DWORD old;VirtualProtect(vt+16,sizeof(void*),PAGE_READWRITE,&old);if(vt[16]!=reinterpret_cast<void*>(hookCreateDevice)){realCreateDevice=reinterpret_cast<CreateDeviceFn>(vt[16]);vt[16]=reinterpret_cast<void*>(hookCreateDevice);}VirtualProtect(vt+16,sizeof(void*),old,&old);}return d;
 }

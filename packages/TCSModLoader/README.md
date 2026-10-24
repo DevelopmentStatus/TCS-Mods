@@ -1,4 +1,4 @@
-# TCS Mod Loader 1.6.4
+# TCS Mod Loader 1.6.5
 
 Supports native DLL plugin ZIPs and legacy TCS asset mods in ZIP/RAR archives.
 
@@ -14,6 +14,18 @@ To remove an asset mod, close the game, remove its archive, and restart. The
 original DAT asset returns unless another enabled mod replaces the same file.
 Original game DATs are never rewritten. Mods/Assets contains generated caches;
 it is safe to remove that folder while the game is closed.
+
+New in 1.6.5: startup waits service the preparation window without consuming the
+game's queued messages before Direct3D initialization finishes. This addresses
+the first-launch window failure after reviewing load order.
+
+Manage Mod Priorities.cmd opens the editor before extracting assets, including
+when a mod archive cannot be imported. Failed archives are marked in the list;
+select one to see its error and disable it or replace its download. Disabled
+archives are not inspected or extracted. Save settings and Close do not build
+an overlay; Launch game prepares the enabled mods first. Import failures now
+show the archive name and reason as well as the report path. If reporting an
+import issue, include the report.json named in the error.
 
 New in 1.6.4: a visible preparation window appears before the asset helper starts.
 Unchanged launches reuse the overlay even when default INI settings are written

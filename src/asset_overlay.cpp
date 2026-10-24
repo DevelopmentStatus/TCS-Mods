@@ -118,7 +118,7 @@ bool runImporter(const std::wstring& root) {
     statusClass.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));
     statusClass.lpszClassName=L"TCSAssetPreparation";
     RegisterClassW(&statusClass);
-    HWND progress=CreateWindowExW(WS_EX_APPWINDOW,statusClass.lpszClassName,L"TCS Mod Loader 1.6.4 - Preparing mods",
+    HWND progress=CreateWindowExW(WS_EX_APPWINDOW,statusClass.lpszClassName,L"TCS Mod Loader 1.6.5 - Preparing mods",
         WS_OVERLAPPED|WS_CAPTION|WS_VISIBLE, CW_USEDEFAULT,CW_USEDEFAULT,540,160,
         nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     if(progress) {

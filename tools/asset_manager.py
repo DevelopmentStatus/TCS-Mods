@@ -69,6 +69,47 @@ def short_label(value, limit):
     return value.encode('utf-8')[:limit].decode('utf-8', errors='ignore')
 
 
+class AssetImportError(ValueError):
+    def __init__(self, report_path, errors):
+        details = '\n'.join(f"{e['archive']}: {e['error']}" for e in errors)
+        super().__init__('Asset import failed:\n' + details + '\nFull report: ' + str(report_path))
+
+
+def inspect_package(game, path, identity):
+    report = inspect(path, game=game, selections=lambda key: setting(game, identity, key, 0))
+    if report['unresolved']:
+        raise ValueError('Cannot determine unique game paths for: ' + ', '.join(report['unresolved'][:12]))
+    if not report['files']:
+        raise ValueError('No recognized game asset files')
+    return report
+
+
+def scan_packages(game):
+    """Discover editable packages without extracting or publishing an overlay."""
+    game = Path(game).resolve()
+    mods = game / 'Mods'
+    mods.mkdir(exist_ok=True)
+    packages = []
+    for path in sorted(mods.iterdir(), key=lambda p: p.name.casefold()):
+        if not path.is_file() or path.suffix.lower() not in {'.zip', '.rar'}:
+            continue
+        identity = package_id(path.name)
+        report = dict(archive=str(path.resolve()), id=identity, enabled=True,
+                      priority=100, files=[], variants=[], status='disabled')
+        try:
+            report['enabled'] = bool(setting(game, identity, 'Enabled', 1))
+            report['priority'] = max(0, min(1000, setting(game, identity, 'Priority', 100)))
+            # A disabled broken archive must not prevent every other mod loading.
+            if report['enabled']:
+                if is_plugin(path):
+                    continue
+                report.update(inspect_package(game, path, identity))
+        except Exception as error:
+            report.update(error=str(error), status='failed', files=[], variants=[])
+        packages.append(report)
+    return packages
+
+
 def setting(game, identity, name, default):
     config = configparser.ConfigParser(interpolation=None)
     config.read(game / 'Mods/Config' / (identity.replace('.', '_') + '.ini'), encoding='utf-8-sig')
@@ -158,39 +199,25 @@ def build(game, review=None):
     generation.mkdir(parents=True)
     active = generation / 'Active'
     active.mkdir()
-    packages, errors, conflicts, owners = [], [], [], {}
+    packages = scan_packages(game)
+    errors, conflicts, owners = [], [], {}
     dat = None
     catalog = configparser.ConfigParser(interpolation=None)
-    for path in sorted(mods.iterdir(), key=lambda p: p.name.casefold()):
-        if not path.is_file() or path.suffix.lower() not in {'.zip', '.rar'}:
-            continue
-        try:
-            if is_plugin(path):
-                continue
-            identity = package_id(path.name)
-            enabled = bool(setting(game, identity, 'Enabled', 1))
-            priority = max(0, min(1000, setting(game, identity, 'Priority', 100)))
-            report = inspect(path, game=game, selections=lambda key: setting(game, identity, key, 0))
-            if report['unresolved']:
-                raise ValueError('Cannot determine unique game paths for: ' + ', '.join(report['unresolved'][:12]))
-            if not report['files']:
-                raise ValueError('No recognized game asset files')
-            report.update(id=identity, enabled=enabled, priority=priority)
-            packages.append(report)
-            catalog['Package' + str(len(packages) - 1)] = dict(Id=identity, Name=path.stem,
-                                                              Enabled=str(int(enabled)), Priority=str(priority))
-            section = catalog['Package' + str(len(packages) - 1)]
-            section['VariantCount'] = str(len(report['variants']))
-            for index, variant in enumerate(report['variants']):
-                section[f'Variant{index}Key'] = variant['key']
-                section[f'Variant{index}Label'] = short_label(variant['label'], 160)
-                section[f'Variant{index}Count'] = str(len(variant['options']))
-                for option, label in enumerate(variant['options']):
-                    section[f'Variant{index}Option{option}'] = short_label(label, 100)
-        except Exception as error:
-            errors.append(dict(archive=path.name, error=str(error)))
+    for number, report in enumerate(packages):
+        if report.get('error') and report['enabled']:
+            errors.append(dict(archive=Path(report['archive']).name, error=report['error']))
+        catalog['Package' + str(number)] = dict(Id=report['id'], Name=Path(report['archive']).stem,
+            Enabled=str(int(report['enabled'])), Priority=str(report['priority']))
+        section = catalog['Package' + str(number)]
+        section['VariantCount'] = str(len(report['variants']))
+        for index, variant in enumerate(report['variants']):
+            section[f'Variant{index}Key'] = variant['key']
+            section[f'Variant{index}Label'] = short_label(variant['label'], 160)
+            section[f'Variant{index}Count'] = str(len(variant['options']))
+            for option, label in enumerate(variant['options']):
+                section[f'Variant{index}Option{option}'] = short_label(label, 100)
     merged = {}
-    if not errors and review is not None and review(game, packages, overlaps(packages)):
+    if review is not None and review(game, packages, overlaps(packages)):
         return build(game)
 
     def baseline(target):
@@ -206,7 +233,7 @@ def build(game, review=None):
 
     # Higher priority wins; filename is a deterministic tie-breaker.
     for report in sorted(packages, key=lambda r: (r['priority'], r['archive'].casefold())):
-        if not report['enabled']:
+        if not report['enabled'] or report.get('error'):
             continue
         stage_dir = generation / report['id']
         try:
@@ -259,7 +286,7 @@ def build(game, review=None):
     if errors:
         result = dict(complete=False, packages=packages, conflicts=conflicts, errors=errors)
         (generation / 'report.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
-        raise ValueError('Asset import failed; see ' + str(generation / 'report.json'))
+        raise AssetImportError(generation / 'report.json', errors)
     for target, value in merged.items():
         path = active / target
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -281,7 +308,7 @@ def launch_game(game, signature):
     executable = game / 'LEGOStarWarsSaga.exe'
     if not executable.is_file():
         raise FileNotFoundError('LEGOStarWarsSaga.exe was not found in ' + str(game))
-    environment = dict(os.environ, TCS_PRIORITY_REVIEWED=signature)
+    environment = dict(os.environ, TCS_PRIORITY_REVIEWED=signature, PYINSTALLER_RESET_ENVIRONMENT='1')
     return subprocess.Popen([str(executable)], cwd=str(game), env=environment)
 
 
@@ -314,12 +341,25 @@ def main():
             from asset_gui import review
             callback = lambda game, packages, rows: review(game, packages, rows,
                 force=args.manage, event_name=args.ui_event, startup=args.startup_ui, on_launch=request_launch)
-        result = build(args.game, review=callback)
+        if args.manage and not args.startup_ui:
+            # Managing priorities must work even when extraction/merging fails.
+            # Save/Close edits settings only; Launch prepares the final overlay.
+            packages = scan_packages(args.game)
+            callback(args.game.resolve(), packages, overlaps(packages))
+            result = (build(args.game) if launch_requested else dict(managed=True, packages=packages))
+        else:
+            result = build(args.game, review=callback)
         if launch_requested and not args.startup_ui:
             result['launched_pid'] = launch_game(args.game, result['fingerprint']).pid
         print(json.dumps(result, indent=2))
     except Exception as error:
         print(str(error), file=sys.stderr)
+        if args.manage or args.startup_ui:
+            try:
+                from tkinter import messagebox
+                messagebox.showerror('TCS Mod Loader - preparation failed', str(error))
+            except Exception:
+                pass  # Preserve the console/log error if Tk itself is unavailable.
         return 1
     return 0
 

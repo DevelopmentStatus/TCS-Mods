@@ -192,11 +192,13 @@ class LoadOrderWindow:
         rows = overlaps(self.packages)
         for package in ordered(self.packages):
             self.mods.insert('', 'end', iid=package['id'], values=(
-                'Yes' if package['enabled'] else 'No', package['priority'], Path(package['archive']).name))
+                'Yes' if package['enabled'] else 'No', package['priority'],
+                Path(package['archive']).name + (' [Import error]' if package.get('error') else '')))
         if identity in self.by_id:
             self.mods.selection_set(identity); self.mods.see(identity)
         self.summary.configure(text=f'{len(self.packages)} asset mods   ·   {len(rows)} overlapping game files   ·   '
-                               f'{len(tied_overlaps(self.packages, rows))} with equal priorities')
+                               f'{len(tied_overlaps(self.packages, rows))} with equal priorities   ·   '
+                               f'{sum(bool(p.get("error")) for p in self.packages)} import errors')
         self.show_conflicts()
 
     def select_mod(self, event=None):
@@ -213,6 +215,11 @@ class LoadOrderWindow:
             choice.bind('<<ComboboxSelected>>', lambda event, p=package, v=variant, c=choice:
                         self.edit_variant(p, v, c.current()))
         self.show_conflicts()
+        if package.get('error'):
+            self.set_details(Path(package['archive']).name + '\n\n' + package['error'] +
+                             '\n\nDisable this archive and save, or replace it with a supported download before launching.')
+        else:
+            self.set_details('Select an overlapping file to see its providers and which mod loads last.')
         self.root.after_idle(self.fit_size)
 
     def show_conflicts(self):
@@ -248,7 +255,14 @@ class LoadOrderWindow:
     def edit_enabled(self):
         package = self.selected()
         if package:
-            package['enabled'] = self.enabled.get(); self.refresh(package['id'])
+            package['enabled'] = self.enabled.get()
+            if package['enabled'] and package.get('status') == 'disabled':
+                from asset_manager import inspect_package
+                try:
+                    package.update(inspect_package(self.game, package['archive'], package['id']))
+                except Exception as error:
+                    package.update(error=str(error), status='failed', files=[], variants=[])
+            self.refresh(package['id']); self.select_mod()
 
     def edit_variant(self, package, variant, selection):
         from import_assets import inspect
@@ -295,6 +309,12 @@ class LoadOrderWindow:
         self.dragged = None
 
     def launch(self):
+        failed = [p for p in self.packages if p['enabled'] and p.get('error')]
+        if failed:
+            messagebox.showerror('Cannot prepare mods', '\n\n'.join(
+                Path(p['archive']).name + ': ' + p['error'] for p in failed) +
+                '\n\nDisable these archives or replace them before launching.', parent=self.root)
+            return
         if not self.startup and not (self.game / 'LEGOStarWarsSaga.exe').is_file():
             messagebox.showerror('Cannot launch game', 'LEGOStarWarsSaga.exe was not found in the selected game folder.', parent=self.root)
             return
@@ -315,7 +335,7 @@ class LoadOrderWindow:
 
 
 def review(game, packages, rows, force=False, event_name=None, startup=True, on_launch=None):
-    if not force and not tied_overlaps(packages, rows):
+    if not force and not tied_overlaps(packages, rows) and not any(p.get('error') and p['enabled'] for p in packages):
         return False
     handle = None
     if event_name and sys.platform == 'win32':
