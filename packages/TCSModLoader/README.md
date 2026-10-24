@@ -1,6 +1,13 @@
-# TCS Mod Loader 1.6.5
+# TCS Mod Loader 1.6.6
 
 Supports native DLL plugin ZIPs and legacy TCS asset mods in ZIP/RAR archives.
+
+New in 1.6.6: when overlapping enabled mods have equal priorities, Auto-sort runs
+automatically and saves the order. Startup then continues without button clicks.
+Distinct saved priorities are preserved, including custom replacement overrides.
+Manage Mod Priorities.cmd also resolves tied overlaps automatically and keeps the
+editor open for changes. Import errors or failed saves still open the editor.
+The Auto-sort button remains available for an explicit full recalculation.
 
 Close the game and back up your existing d3d9.dll. Extract this package beside
 LEGOStarWarsSaga.exe. Keep both d3d9.dll and TCSAssetManager.exe there.

@@ -34,6 +34,26 @@ def write_dat(path, files):
 
 
 class ManagerTests(unittest.TestCase):
+    def test_startup_auto_sort_saves_then_builds_the_selected_winner(self):
+        from asset_gui import review
+        from asset_conflicts import save_settings
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as folder:
+            game = Path(folder); mods = game / 'Mods'; mods.mkdir()
+            for name in ('a', 'b'):
+                with zipfile.ZipFile(mods / (name + '.zip'), 'w') as archive:
+                    archive.writestr('CHARS/HERO/HERO_PC.GHG', name.encode())
+            result = manager.build(game, review=review)
+            self.assertEqual(len({p['priority'] for p in result['packages']}), 2)
+            self.assertEqual(result['fingerprint'], manager.fingerprint(game, mods))
+            self.assertEqual((Path(result['active']) / 'CHARS/HERO/HERO_PC.GHG').read_bytes(), b'b')
+            # A subsequent manually selected winner survives startup unchanged.
+            next(p for p in result['packages'] if Path(p['archive']).name == 'a.zip')['priority'] = 1000
+            next(p for p in result['packages'] if Path(p['archive']).name == 'b.zip')['priority'] = 100
+            save_settings(game, result['packages'])
+            custom = manager.build(game, review=review)
+            self.assertEqual((Path(custom['active']) / 'CHARS/HERO/HERO_PC.GHG').read_bytes(), b'a')
+            self.assertEqual(manager.build(game, review=review)['active'], custom['active'])
+
     def test_bad_archive_is_editable_and_disabled_archives_are_not_opened(self):
         from unittest.mock import patch
         from asset_conflicts import save_settings

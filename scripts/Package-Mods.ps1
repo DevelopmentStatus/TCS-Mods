@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $components = @(
-    @{Name='TCSModLoader'; Version='1.6.5'; Dll='d3d9.dll'},
+    @{Name='TCSModLoader'; Version='1.6.6'; Dll='d3d9.dll'},
     @{Name='TCSFirstPerson'; Version='0.4.0'; Dll='TCSFirstPerson.dll'},
     @{Name='TCSModernOptions'; Version='0.4.0'; Dll='TCSModernOptions.dll'},
     @{Name='TCSAllyDamage'; Version='1.1.1'; Dll='TCSAllyDamage.dll'},

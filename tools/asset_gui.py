@@ -335,8 +335,25 @@ class LoadOrderWindow:
 
 
 def review(game, packages, rows, force=False, event_name=None, startup=True, on_launch=None):
-    if not force and not tied_overlaps(packages, rows) and not any(p.get('error') and p['enabled'] for p in packages):
-        return False
+    changed = False
+    auto_save_error = None
+    failed = any(p.get('error') and p['enabled'] for p in packages)
+    # Resolve ambiguous defaults once. Distinct saved priorities remain the
+    # user's choice, so reopening the manager cannot undo a custom override.
+    if tied_overlaps(packages, rows) and not failed:
+        suggested = copy.deepcopy(packages)
+        auto_sort(suggested)
+        try:
+            changed = save_settings(game, suggested)
+        except Exception as error:
+            # Keep the editor available to explain/retry a failed save.
+            auto_save_error = str(error)
+            force = True
+        else:
+            packages = suggested
+            rows = overlaps(packages)
+    if not force and not failed:
+        return changed
     handle = None
     if event_name and sys.platform == 'win32':
         kernel = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -348,11 +365,17 @@ def review(game, packages, rows, force=False, event_name=None, startup=True, on_
     try:
         window = LoadOrderWindow(game, packages, startup=startup)
         window.root.update_idletasks()
+        if auto_save_error is not None:
+            window.set_details('Automatic sorting could not be saved: ' + auto_save_error +
+                               '\n\nYour saved order was retained. Use Auto-sort and Save settings to retry.')
+        elif changed:
+            window.set_details('Auto-sort resolved equal priorities and saved the order. '
+                               'You can adjust it below and save your preferred replacements.')
         if handle: kernel.SetEvent(handle)
         window.root.mainloop()
         if window.launch_requested and on_launch is not None:
             on_launch()
-        return window.changed
+        return window.changed or changed
     finally:
         if handle:
             kernel.ResetEvent(handle); kernel.CloseHandle(handle)

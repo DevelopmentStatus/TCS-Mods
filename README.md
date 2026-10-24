@@ -8,24 +8,24 @@ Targets the validated **32-bit Windows Steam PC build**. These are native C++ DL
 
 Download the ZIPs below using GitHub's **Download raw file** button. Install the loader first, then choose any combination of plugins.
 
-[Loader 1.6.5 release and download](https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.6.5): the priority editor can recover from archive import errors, and startup defers queued game messages until graphics initialization resumes. See the [release notes](docs/releases/TCSModLoader-v1.6.5.md) for changes and validation limits.
+[Loader 1.6.6 release and download](https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.6.6): tied overlapping priorities are automatically sorted and saved before startup continues. Distinct saved custom priorities are preserved. See the [release notes](docs/releases/TCSModLoader-v1.6.6.md) for details.
 
 | Component | Included build | What it does | Main source |
 | --- | --- | --- | --- |
-| [TCS Mod Loader](dist/TCSModLoader-v1.6.5.zip) | 1.6.5 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [TCS Mod Loader](dist/TCSModLoader-v1.6.6.zip) | 1.6.6 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
 | [TCS First Person](dist/TCSFirstPerson-v0.4.0.zip) | 0.4.0 | First-person camera, animated head camera style, orbit camera, mouse aiming, visible body, and PC controls | [mod.cpp](src/mod.cpp) |
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
 | [TCS Ally Damage](dist/TCSAllyDamage-v1.1.1.zip) | 1.1.1 | Damage eligibility and active combat behavior for AI party companions | [ally_damage.cpp](src/ally_damage.cpp) |
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
 | [Shop Ownership Fix](dist/TCSShopOwnershipFix-v1.0.0.zip) | 1.0.0 | Corrects false unpurchased shop entries for characters already owned, without changing studs or saves | [shop_ownership.cpp](src/shop_ownership.cpp) |
 
-The loader 1.6.5 ZIP is built from the updated source in this repository. The plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
+The loader 1.6.6 ZIP is built from the updated source in this repository. The plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
 ## Installation
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.6.5.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.6.6.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
 5. Start the game. Open **Pause > Mod Settings**, directly below **Effects Settings**, then select a mod to configure it.
 
@@ -48,7 +48,7 @@ LEGO Star Wars Saga/
 
 Asset mods: drop supported ZIP/RAR downloads directly into `Mods`. Keep them compressed. The loader imports level/world packages and character assets, including loose layouts inferred from registries and neighboring files. Legacy character packs can provide roster/shop/name snippets in TXT documentation. See [asset installation and conflict rules](docs/ASSET_IMPORT.md).
 
-The startup editor appears when overlapping enabled mods have equal priorities. Auto-sort suggests an order with distinct priorities; Launch game saves and continues or starts the game. The version is visible, and the responsive layout keeps its action bar accessible when resized or scaled. Python/Tk is bundled.
+When overlapping enabled mods have equal priorities, the loader automatically runs Auto-sort, saves the order and continues startup. Distinct saved priorities preserve your custom order. Import errors or a failed save still open the editor. Manage Mod Priorities.cmd opens it manually, and the Auto-sort button remains available. Python/Tk is bundled.
 
 Modern Overhaul and both Additional Levels variants use the general importer. Enable only one Additional Levels variant, and obtain Modern Overhaul separately for its variant. Removing an archive and restarting restores the underlying asset unless another enabled mod replaces it. No QuickBMS or separate Python installation is needed.
 

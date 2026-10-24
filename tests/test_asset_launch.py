@@ -13,6 +13,40 @@ from test_asset_conflicts import package
 
 
 class LaunchTests(unittest.TestCase):
+    def test_tied_startup_sorts_and_saves_without_opening_editor(self):
+        from asset_conflicts import ordered
+        with tempfile.TemporaryDirectory() as folder:
+            packages = [package(1), package(2, profile='level-pack')]
+            with patch('asset_gui.LoadOrderWindow') as window:
+                self.assertTrue(review(folder, packages, overlaps(packages)))
+                window.assert_not_called()
+            saved = [dict(p, priority=manager.setting(Path(folder), p['id'], 'Priority', -1)) for p in packages]
+            self.assertEqual([p['id'] for p in ordered(saved)], [packages[1]['id'], packages[0]['id']])
+            self.assertEqual(len({p['priority'] for p in saved}), 2)
+            with patch('asset_gui.save_settings') as save, patch('asset_gui.LoadOrderWindow') as window:
+                self.assertFalse(review(folder, saved, overlaps(saved)))
+                save.assert_not_called(); window.assert_not_called()
+
+    def test_manual_editor_displays_auto_saved_order_and_reports_rebuild_needed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            packages = [package(1), package(2)]
+            with patch('asset_gui.LoadOrderWindow') as window:
+                window.return_value.changed = False
+                window.return_value.launch_requested = False
+                self.assertTrue(review(folder, packages, overlaps(packages), force=True, startup=False))
+                displayed = window.call_args.args[1]
+                self.assertEqual(len({p['priority'] for p in displayed}), 2)
+
+    def test_auto_save_failure_falls_back_to_editor_without_claiming_a_change(self):
+        packages = [package(1), package(2)]
+        with patch('asset_gui.save_settings', side_effect=OSError('Read-only settings')), \
+                patch('asset_gui.LoadOrderWindow') as window:
+            window.return_value.changed = False
+            window.return_value.launch_requested = False
+            self.assertFalse(review('.', packages, overlaps(packages)))
+            window.assert_called_once()
+            self.assertIn('Read-only settings', window.return_value.set_details.call_args.args[0])
+
     def test_review_token_skips_only_the_exact_approved_state(self):
         with tempfile.TemporaryDirectory() as folder:
             for actual, expected_review in [('approved', False), ('modified', True)]:

@@ -1,5 +1,5 @@
 [center][size=6][b]TCS MOD LOADER[/b][/size]
-[size=4]Version 1.6.5[/size]
+[size=4]Version 1.6.6[/size]
 An easier way to use mods in LEGO Star Wars: The Complete Saga.[/center]
 
 [line]
@@ -9,7 +9,7 @@ TCS Mod Loader lets you add supported mods by putting their ZIP or RAR files int
 
 You can turn supported mods on or off, change their settings, and choose which mod takes priority when two mods change the same files. Your original game DAT files stay untouched.
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.6.5]Download version 1.6.5[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.6.6]Download version 1.6.6[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
 
 [line]
 
@@ -104,7 +104,7 @@ Make sure the character pack is turned on and that you installed everything it n
 Check which mods change the same files in the load-order window. Give the mod you want to use a higher priority number. If it offers different looks, check which one you selected.
 
 [b]The load-order window does not open when I start the game[/b]
-That is normal if no overlapping mods have matching priorities. To open it yourself, close the game and double-click Manage Mod Priorities.cmd.
+Version 1.6.6 automatically sorts and saves overlapping mods with matching priorities, then continues startup. Saved distinct priorities keep your custom order. To open the editor yourself, close the game and double-click Manage Mod Priorities.cmd.
 
 [b]The loader is using a lot of disk space[/b]
 The loader keeps prepared files, including older copies. Updating does not remove those automatically. With the game and TCSAssetManager closed, you can delete [b]Mods/Assets[/b] to clear its saved files. The loader will prepare them again next time. Keep [b]Mods/Config[/b] and your mod ZIP/RAR files. Do not delete the whole game folder.
@@ -122,7 +122,14 @@ To remove the loader itself, close the game and remove its d3d9.dll, TCSAssetMan
 
 [line]
 
-[b][size=4]New in version 1.6.5[/size][/b]
+[b][size=4]New in version 1.6.6[/size][/b]
+[list]
+[*]Auto-sort runs and saves automatically when overlapping enabled mods have equal priorities. Game startup continues without clicking buttons.
+[*]Distinct saved priorities keep your custom order, including preferred character replacements.
+[*]The manual priority editor also resolves tied overlaps automatically. You can still adjust and save your preferred order.
+[/list]
+
+[b][size=4]Earlier fixes in version 1.6.5[/size][/b]
 [list]
 [*]Changes the startup wait so queued game messages stay available until graphics initialization resumes, addressing a possible cause of the missing window after load-order review.
 [*]The priority editor opens even when an archive cannot be imported, shows its error and lets you disable it.

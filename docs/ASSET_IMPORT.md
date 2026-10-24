@@ -1,4 +1,4 @@
-# Drag-and-drop asset mods - loader 1.6.5
+# Drag-and-drop asset mods - loader 1.6.6
 
 For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
 
@@ -15,6 +15,12 @@ For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
 No QuickBMS or separate Python installation is needed. The packaged helper
 includes Python and uses the Windows built-in tar.exe to read RAR files.
 The first import takes longer; unchanged archives/settings reuse the overlay.
+
+In 1.6.6, overlapping enabled mods with equal priorities are automatically
+Auto-sorted and saved before preparing the overlay. Startup continues without
+opening the priority editor unless an import error or failed save needs attention.
+Distinct saved priorities keep your custom order. The manual editor resolves
+tied overlaps too, and stays open so you can adjust and save preferred winners.
 
 In 1.6.5, Manage Mod Priorities.cmd opens before asset extraction. A broken or
 unsupported archive appears with an Import error label; select it for the reason,
