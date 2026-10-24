@@ -21,7 +21,8 @@ You can turn supported mods on or off, change their settings, and choose which m
 [*]Adds characters to the character list and shop when a supported pack includes the needed information.
 [*]Lets you choose between different looks included in supported character packs.
 [*]Includes a load-order window where you can drag mods into order, turn them on or off, and see which ones change the same files.
-[*]Includes an Auto-sort button to suggest a starting order.
+[*]Automatically runs Auto-sort and saves when overlapping enabled mods have matching priorities, then continues game startup.
+[*]Keeps your saved custom order when priorities are distinct. The Auto-sort button is still available if you want a new suggestion.
 [*]Adds a Mod Settings menu to the pause menu for supported mods.
 [*]Shows a preparation window while getting your mods ready. If nothing has changed, it reuses the files it already prepared.
 [*]No separate Python or QuickBMS download is needed.
@@ -45,17 +46,21 @@ You can turn supported mods on or off, change their settings, and choose which m
 [line]
 
 [b][size=4]Choosing which mod loads last[/size][/b]
-Close the game and double-click [b]Manage Mod Priorities.cmd[/b] to open the load-order window.
+In version 1.6.6, if enabled mods change the same files and have matching priority numbers, the loader automatically runs [b]Auto-sort[/b], saves the order and continues starting the game. You do not need to click Auto-sort or Save settings for this step.
+
+Already saved a custom order with different priority numbers? The loader keeps it. To choose your own order, close the game and double-click [b]Manage Mod Priorities.cmd[/b]. Any matching priorities on overlapping mods are also sorted and saved automatically when you open this window.
 
 Drag mods into order or use the arrow buttons. [b]A higher priority number means a mod loads later.[/b] If two mods replace the same file, the one that loads later usually wins.
 
+[b]Example:[/b] To use a Boba Fett replacement over another character pack, put the Boba Fett mod below that pack and give it a higher priority number, such as 200 for Boba Fett and 100 for the other pack. Save your changes. Boba Fett will win where both mods replace the same files.
+
 [list]
-[*][b]Auto-sort[/b] suggests an order, usually putting large packs before smaller replacements. Always follow the mod author's instructions too.
+[*][b]Auto-sort[/b] recalculates the suggested order, usually putting large packs before smaller replacements. Save after clicking it manually. Always follow the mod author's instructions too; Auto-sort cannot know which character replacement you prefer or every mod's requirements.
 [*][b]Save settings[/b] saves your changes and keeps the window open.
 [*][b]Launch game[/b] saves your changes and starts the game, or continues the game if it is already waiting for you.
-[*]Closing the window without saving keeps your previous settings.
+[*]Closing without saving discards your manual edits. Any order already saved by automatic sorting remains saved.
 [/list]
-The window opens automatically at startup only when enabled mods change the same files and have matching priority numbers. You can still open it yourself at any time with the game closed.
+The editor opens during startup if an import error or failed automatic save needs attention. Matching priorities alone are handled automatically. You can still open the editor yourself at any time with the game closed.
 
 [line]
 
