@@ -99,6 +99,8 @@ It supports the file layouts used by:
 [b]Steam says the game is running, but I cannot see it[/b]
 Look for the preparation window or load-order window. A large mod pack can take a few minutes to get ready. Version 1.6.4 fixes unnecessary repeat work that could make startup much slower. Make sure you replaced both loader files when updating.
 
+Sometimes, on your first launch with mods installed or after setting priorities for all your mods, you may need to stop or close the game through Steam or Task Manager, then launch it again.
+
 [b]Manage Mod Priorities.cmd reports an asset import error[/b]
 Version 1.6.5 opens the editor before extracting assets. Failed archives appear in the list with an Import error label. Select one to read the reason, then disable it and save or replace its download. Saving or closing the manual editor does not rebuild assets. If you need help, send the [b]report.json[/b] named in the error as well as the logs.
 
