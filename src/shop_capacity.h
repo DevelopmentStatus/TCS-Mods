@@ -242,6 +242,9 @@ inline bool writePatch(const Patch& p,bool restore=false) {
 }
 inline void makePatches() {
     patches.clear();
+    // Match native text allocation and both language-reader bounds. Character
+    // packs use generated private IDs4096..8191, outside the original UI range.
+    for(auto address:{0x4c9fd5,0x4cf53e,0x4cf5a3})operand(address,{0x68,0xd,7,0,0},1,8192);
     call(0x4ca16f,{0xe8,0xfc,0xfc,0xa,0},portrait_registry::initialize);
     operand(0x419f21,{0x80,0x3c,0xf5,0xf8,0x44,0x7f,0,3},3,(unsigned)portrait_registry::entries.data());
     operand(0x419f41,{0x8b,0xc,0xf5,0xfc,0x44,0x7f,0},3,(unsigned)portrait_registry::entries.data()+4);

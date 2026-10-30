@@ -1,5 +1,5 @@
 [center][size=6][b]TCS MOD LOADER[/b][/size]
-[size=4]Version 1.7.3[/size]
+[size=4]Version 1.7.4[/size]
 An easier way to use mods in LEGO Star Wars: The Complete Saga.[/center]
 
 [line]
@@ -9,12 +9,13 @@ TCS Mod Loader lets you add supported mods by putting their ZIP or RAR files int
 
 You can turn supported mods on or off, change their settings, and choose which mod takes priority when two mods change the same files. Your original game DAT files stay untouched.
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.7.3]Download version 1.7.3[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.7.4]Download version 1.7.4[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
 
 [line]
 
-[b][size=4]New in 1.7.3[/size][/b]
+[b][size=4]New in 1.7.4[/size][/b]
 [list]
+[*]Fixes wrong names when different character packs reuse the same text IDs, including Darth Nihilus and the Imperial, Clone, Anakin and Obi-Wan expansions.
 [*]Fixes blank portraits in the shop and character-selection grid when a large mod collection fills the original icon registry.
 [*]Supports up to 1,000 registered characters and 1,000 character-shop entries. Characters still need their normal story unlocks and purchases before Free Play.
 [*]Includes the save-loading crash fix for rosters larger than 340 characters.
@@ -122,6 +123,9 @@ Version 1.6.5 opens the editor before extracting assets. Failed archives appear 
 
 [b]My new characters are not in the shop[/b]
 Make sure the character pack is turned on and that you installed everything it needs. Another mod may be replacing the files it uses. Check the load order and restart after changing it. Version 1.7.3 removes the original 340-character registration and 100-entry shop limits. The supported limits are now 1,000 entries; normal story requirements and stud prices still apply. Some unsupported packs may still need extra support.
+
+[b]The selected character has the wrong name[/b]
+Update to 1.7.4 and replace both loader files. Names supplied by different packs now stay separate, so one pack does not rename another pack's characters. The prepared files rebuild once after updating.
 
 [b]Added characters have blank portraits[/b]
 Update to 1.7.3 and restart the game. This version expands the shared object/icon registry and its name storage, so later character packs can register both normal and locked portraits. Original mod files are preserved.

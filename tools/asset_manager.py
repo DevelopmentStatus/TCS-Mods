@@ -17,6 +17,7 @@ from asset_conflicts import overlaps
 from asset_version import VERSION
 from portrait_assets import prepare as prepare_portraits
 import native_asi
+import character_names
 
 
 def text(data):
@@ -228,10 +229,12 @@ def build(game, review=None):
             return merged[target]
         replacement = active / target
         if replacement.is_file():
-            return text(replacement.read_bytes())
+            data = replacement.read_bytes()
+            return character_names.decode(data) if target.startswith('STUFF/TEXT/') else text(data)
         if dat is None:
             dat = Dat(game / 'GAME.DAT')
-        return text(dat.read(target))
+        data = dat.read(target)
+        return character_names.decode(data) if target.startswith('STUFF/TEXT/') else text(data)
 
     # Higher priority wins; filename is a deterministic tie-breaker.
     for report in sorted(packages, key=lambda r: (r['priority'], r['archive'].casefold())):
@@ -246,12 +249,11 @@ def build(game, review=None):
             stage(report, stage_dir)
             assets = {i['target']: stage_dir / ('assets' if i['kind'] == 'asset' else 'review') / i['target']
                       for i in report['files']}
-            owned, ids = set(), set()
+            owned = set()
             for target, path in assets.items():
                 if (report.get('profile') != 'level-pack' and target.startswith('CHARS/')
                         and target.endswith('.TXT') and target.count('/') >= 2):
                     owned.add(Path(target).stem.upper())
-                    ids.update(re.findall(r'\bname_id\s*=\s*(\d+)', text(path.read_bytes()), re.I))
             updates = {}
             for target, path in assets.items():
                 if report.get('profile') == 'level-pack':
@@ -264,7 +266,10 @@ def build(game, review=None):
                     parser = blocks if target.endswith('/CHARS.TXT') else collection
                     updates[target] = merge_owned(baseline(target), text(path.read_bytes()), owned, parser)
                 elif target.startswith('STUFF/TEXT/') and target.endswith('.TXT'):
-                    updates[target] = merge_language(baseline(target), text(path.read_bytes()), ids)
+                    # Character labels are namespaced from their supplying
+                    # pack after every winner is known. Never overwrite a
+                    # different character/UI row merely because its ID matches.
+                    updates[target] = baseline(target)
             # Known AT-AT package supplies its missing collection entry only in
             # prose. This is a fixed adapter, never execution of README commands.
             if (report.get('profile') != 'level-pack'
@@ -313,11 +318,19 @@ def build(game, review=None):
         path = active / target
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(value.encode('utf-8-sig' if target.startswith('STUFF/TEXT/') else 'utf-8'))
+    try:
+        names = character_names.prepare(active, packages, generation, owners, baseline)
+    except ValueError as error:
+        errors.append(dict(archive='Character names', error=str(error)))
+        (generation / 'report.json').write_text(json.dumps(dict(complete=False, packages=packages,
+            conflicts=conflicts, errors=errors), indent=2), encoding='utf-8')
+        raise AssetImportError(generation / 'report.json', errors) from error
     portraits = prepare_portraits(active, packages, generation)
     # As with asset files, the last enabled provider wins duplicate ASI names.
     selected_native = {entry['name'].casefold(): entry for entry in native_plugins}
     native_plugins = list(selected_native.values())
     result = dict(complete=True, packages=packages, conflicts=conflicts, errors=errors, portraits=portraits,
+                  character_names=names,
                   native_plugins=native_plugins,
                   active=str(active), fingerprint=signature, overlaps=overlaps(packages),
                   priority='Higher wins; filename breaks ties')

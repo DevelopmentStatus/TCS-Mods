@@ -409,3 +409,16 @@ non-default variant selections per installed archive. INI formatting, newly writ
 defaults and stale configs for removed archives no longer invalidate the overlay.
 Archive hashes retain the metadata cache described above. Version changes trigger
 one rebuild. Twenty-five Python and thirteen native regression tests pass.
+
+
+### Character names (1.7.4)
+
+Character labels are taken from the supplying pack and assigned separate text
+IDs after the final file winners are known. This prevents reused IDs in unrelated
+packs from changing each other's names. Supplied translations are retained;
+missing translations use the supplied English name, or another supplied name
+when the pack has no English row. An overriding skin may inherit a label from
+an earlier provider of that same character config. Level-pack tables and native
+UI text retain their original IDs. Changes apply only to generated overlays.
+The report's character_names field records the config, provider and old/new IDs.
+Updating both loader files to 1.7.4 rebuilds the prepared overlay once.

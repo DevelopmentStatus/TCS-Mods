@@ -1,7 +1,8 @@
-# TCS Mod Loader 1.7.3
+# TCS Mod Loader 1.7.4
 
 For the supported Windows Steam version of LEGO Star Wars: The Complete Saga.
 Supports larger character rosters, portrait fixes and compatible asset/plugin mods.
+Version 1.7.4 also keeps character names separate when packs reuse text IDs.
 
 ## Install or update
 
