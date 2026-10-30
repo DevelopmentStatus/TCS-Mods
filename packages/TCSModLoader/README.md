@@ -1,190 +1,33 @@
 # TCS Mod Loader 1.7.3
 
-Fixed in 1.7.3: portraits from later character packs can register past the
-original 750-object limit. The object table moves to 4,096 slots and its name
-pool to 256 KiB, including normal and locked icons. Background character lookup
-and startup/save-icon references follow the relocated table. Existing supplied
-portrait files, preload metadata and save formats are retained.
+For the supported Windows Steam version of LEGO Star Wars: The Complete Saga.
+Supports larger character rosters, portrait fixes and compatible asset/plugin mods.
 
+## Install or update
 
-Fixed in 1.7.2: loading a save with more than 340 registered characters no
-longer overwrites the stack guard in the hub character-switching path. Both
-model-ID buffers and the associated random candidate list now match the
-1,000-character registration limit. Save formats/companions are unchanged.
+1. Close the game and back up any existing d3d9.dll.
+2. Extract this ZIP into the folder containing LEGOStarWarsSaga.exe.
+3. Replace both d3d9.dll and TCSAssetManager.exe when updating.
+4. Put supported mod ZIP/RAR files directly in Mods and leave them compressed.
+   The supported Saga Tweaks 1.2.0 7z archive can also stay compressed.
+5. Start the game. First-time mod preparation can take a few minutes.
 
+Keep Mods/Config when updating to preserve your settings.
+Other people's mods are downloaded separately; they are not included here.
 
-Fixed in 1.7.1: character registration now supports 1,000 entries as well as
-the shop. The original global roster stopped at 340 entries, silently dropping
-later packs. The loader replaces the 500-entry/10 KB native parser with a
-bounded dynamic parser that retains the game's lexer, extends character-spawn
-checks, and enlarges hub/Free Play temporary lists safely.
+## Settings and load order
 
+Open Pause > Mod Settings for supported mod settings.
+With the game closed, run Manage Mod Priorities.cmd to adjust load order.
+Higher priority loads later. Restart after changing asset mods or their order.
 
-New in 1.7.0: the native character shop supports 1,000 entries. Character-item,
-cheat-code and purchase-bit storage is expanded together. Character ownership
-moves out of the original 340-byte save array into bounded runtime storage.
-Added progress is saved beside each native save as a .tcs-characters companion,
-bound to that native snapshot and keyed by character file identity. Keep both
-files when backing up/transferring saves. Native save size/checksum stay intact.
-Story unlock requirements and stud prices still apply. This does not make
-1,000 characters fit onscreen at once or bypass normal Free Play ownership.
+## Saves
 
+Normal story unlocks and purchases still apply to added characters.
+Keep each .tcs-characters companion beside its native save when backing up
+or transferring progress. The original native save format is preserved.
 
-Supports native DLL plugin ZIPs and legacy TCS asset mods in ZIP/RAR archives.
+For the full guide and troubleshooting, visit:
+https://github.com/DevelopmentStatus/TCS-Mods
 
-New in 1.6.11: character packs can omit or partially supply CHARS.TXT. The
-importer adds a missing registration only when the archive supplies a named
-character config, its matching _PC.GHG model and a collection entry. Explicit
-and existing roster records remain authoritative. Inherited configs using
-txt_file are supported. Ambiguous config directories or missing models are
-reported instead of guessed. Purchase/unlock rules and save files are unchanged.
-Level/world-pack coordinated tables keep their existing behavior.
-
-This importer update rebuilds the prepared overlay once. Obi Wan Kenobi
-Expansion 1 now receives its three missing roster registrations; its Dooku-area
-completion requirements still apply. See registration_diagnostics in report.json.
-
-Fixed in 1.6.10: the loader no longer forces a display reset on the first Present
-call after creating the device. Saga window mode is selected before device
-creation; later display changes are queued to the window-message loop rather
-than resetting resources from inside Present. The existing importer/cache is
-unchanged, so this native hotfix does not force asset re-extraction.
-
-New in 1.6.8: leave the supplied Saga Tweaks 1.2.0 .7z directly in Mods. The
-loader imports and loads its verified SagaTweaks.asi without Universal ASI
-Loader. Both the importer and native loader check the supported binary's SHA-256.
-This integration supports that exact 1.2.0 binary, not arbitrary ASI modules.
-
-Fixed in 1.6.9: Mod Settings is drawn inline below Effects Settings again,
-and known native pause handlers are reattached after late menu initialization.
-Saga Tweaks/Extras/Drop Out/Quit dispatch translates both cursor fields and
-Saga's row index around the inserted row.
-
-TCS Modern Options v0.4.0 now loads alongside Saga Tweaks. Its window mode,
-VSync and frame-cap settings are forwarded to Saga's exported controls rather
-than running competing display paths. Startup preferences apply once the native
-device exists; Saga's reset path retains render scaling. Only TCS Skip Splash
-is skipped while Saga is active because both change the same startup branch.
-
-Saga's INI/log live in Mods/Loaded/ASI/SagaTweaks beside its generated ASI. This
-stable folder preserves its settings across overlay rebuilds. Disable the Saga
-archive with its Enabled (restart) control or remove the archive and restart.
-The loader does not scan stale ASIs in generated folders. It does not require
-dinput8.dll and does not redistribute or alter SagaTweaks.asi.
-
-New in 1.6.7: portrait compatibility validates filenames and internal scene
-object names, repairs the known KOTOR Anakin-template icon mismatch in generated
-files, and gives normal/fallen Bastila separate portrait identities. Valid
-individual portraits are preloaded with the game's character icons. Shared icon
-conflicts keep the selected winner and use earlier scenes only for missing names.
-Scenes use the game's allocator and are released with its icon teardown.
-Portrait repairs and unresolved references appear in report.json / import.log.
-Original archives, DATs, save files and saved priorities are unchanged. The new
-version automatically rebuilds the generated overlay on first startup.
-
-Validation: 38 Python tests and 14 native tests passed; an offline copy of the
-installed mod stack repaired 12 KOTOR registrations and preserved the two missing
-Modern Overhaul portrait pairs. Full gameplay has not been verified for this build.
-
-New in 1.6.6: when overlapping enabled mods have equal priorities, Auto-sort runs
-automatically and saves the order. Startup then continues without button clicks.
-Distinct saved priorities are preserved, including custom replacement overrides.
-Manage Mod Priorities.cmd also resolves tied overlaps automatically and keeps the
-editor open for changes. Import errors or failed saves still open the editor.
-The Auto-sort button remains available for an explicit full recalculation.
-
-Close the game and back up your existing d3d9.dll. Extract this package beside
-LEGOStarWarsSaga.exe. Keep both d3d9.dll and TCSAssetManager.exe there.
-No QuickBMS or separate Python download is required.
-
-Drop supported mod archives directly into Mods and restart. Keep them compressed.
-Under Pause > Mod Settings, asset packages have Enabled and Priority controls;
-changes take effect on restart. Higher priority wins file conflicts.
-
-To remove an asset mod, close the game, remove its archive, and restart. The
-original DAT asset returns unless another enabled mod replaces the same file.
-Original game DATs are never rewritten. Mods/Assets contains generated caches;
-it is safe to remove that folder while the game is closed.
-
-New in 1.6.5: startup waits service the preparation window without consuming the
-game's queued messages before Direct3D initialization finishes. This addresses
-the first-launch window failure after reviewing load order.
-
-Manage Mod Priorities.cmd opens the editor before extracting assets, including
-when a mod archive cannot be imported. Failed archives are marked in the list;
-select one to see its error and disable it or replace its download. Disabled
-archives are not inspected or extracted. Save settings and Close do not build
-an overlay; Launch game prepares the enabled mods first. Import failures now
-show the archive name and reason as well as the report path. If reporting an
-import issue, include the report.json named in the error.
-
-New in 1.6.4: a visible preparation window appears before the asset helper starts.
-Unchanged launches reuse the overlay even when default INI settings are written
-or formatting changes. Changed archives, order, enabled state and variants rebuild.
-The first launch after this update rebuilds once; later unchanged launches reuse it.
-
-Also included: DLL-plugin scanning checks the ZIP directory for root manifest.ini
-before extraction. Asset-only ZIPs are no longer extracted a second time into
-Mods/Loaded. Plugin extraction pumps window messages and stops timed-out workers.
-This fixes the duplicate extraction observed during the delayed game startup.
-Update BOTH d3d9.dll and TCSAssetManager.exe. Existing generated caches are retained.
-
-Also included: the game pumps window messages while waiting for asset preparation,
-unchanged archives reuse cached hashes, and a required load-order window is brought
-forward. Startup diagnostics are written to TCSModernOptions.log. This addresses
-loader waits that could leave Steam showing Running before a usable window appears.
-Replace BOTH d3d9.dll and TCSAssetManager.exe when updating.
-
-Also included: the window and header show the loader version. The action bar keeps
-its own space, the lists shrink instead of hiding Launch game, toolbars wrap at
-higher DPI, and minimum size adapts to the screen and scaled controls.
-
-Also included: the startup priority editor opens only when enabled mods overlap
-AND two or more providers have the same priority. Distinct priorities skip the
-popup, even when files overlap. Manual editing remains available at any time.
-
-Auto-sort suggests broad world packs first, then focused replacements, and assigns
-unique priorities. It uses package structure/file coverage, not archive names or
-a complete dependency database. Review mod-specific requirements before saving.
-
-Save settings saves without closing the editor. Launch game saves and continues
-the waiting game; from the manual editor it prepares the overlay and starts
-LEGOStarWarsSaga.exe. An exact-state review token prevents a second identical
-startup popup; changed archives or configs are checked again.
-
-Drag mods or use Load earlier/later, edit priorities, disable packs and choose
-variants. The overlapping-file view shows the last provider and distinguishes
-merge-aware character tables from complete file replacements. Close the editor
-to discard unsaved edits and continue with saved settings.
-Double-click Manage Mod Priorities.cmd to open it manually with the game closed.
-Python and Tcl/Tk are bundled; no Python installation is required.
-DLL patch conflicts and missing dependencies are outside this file-overlap check.
-
-Existing features: infer loose character paths using game registries and neighboring
-files, select whole model variants in Mod Settings, and import larger overhauls
-(up to 8 GiB extracted / 512 MiB per file). Adds MOVIES/BIK/FNT/CSV support.
-Clones works directly with normal/antenna/visor options; Modern Overhaul 2.2.2
-fits the expanded limits. Give addons a higher Priority than their base overhaul.
-
-Legacy character packs can supply roster, shop and English-name
-records in TXT documentation. Only records tied to supplied characters are read;
-installation commands are never run. Loose ICONS/TEXT folders map into STUFF.
-The original Mandalorian Season 2 archive works directly, without a repack.
-
-Also includes general level/world package support, including cutscenes, terrain,
-AI/scripts, music configs and pack resources. Detection uses game directory layout,
-not archive names. Shared level-pack tables are preserved as full replacements;
-priority resolves file conflicts. The extracted package limit is 8 GiB.
-
-Additional Levels 2.3.1 and its Modern Overhaul 1.4 variant are supported by this
-general path. Install ONE variant; the Overhaul variant requires Modern Overhaul.
-Keep archives compressed in Mods. Other level packs with the same supported
-layout work through the same importer, subject to dependencies and file conflicts.
-
-Existing character compatibility targets: Darth Nihilus ver 0.0.4, RTX Obiwan, and TIE Fighter
-Pilot / AT-AT Driver (2010 Version). Other archives may require import adapters.
-See docs/ASSET_IMPORT.md for details, conflict rules and validation limits.
-
-Validated x86 Steam game build, on 64-bit Windows 10/11. Third-party runtime
-license notices are included in licenses/. Nexus mods and game assets are not
-included in this loader package.
+Required third-party license notices are in licenses/.
