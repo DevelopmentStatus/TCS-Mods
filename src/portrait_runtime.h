@@ -1,0 +1,132 @@
+#pragma once
+#include "ally_detour.h"
+#include <algorithm>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+// Uses the game's scene allocator, icon table and teardown. No fake characters
+// or persistent scene pointers survive IconScenes_Dump / area transitions.
+namespace portrait_runtime {
+struct Model { short id, count; };
+using LoadFn = void(__cdecl*)(const Model*, int, void**, void**);
+using FindFn = int(__cdecl*)(void*, void*, const char*, int);
+using ReadFn = void*(__cdecl*)(void**, void*, const char*);
+using RemoveFn = void(__cdecl*)(void*);
+struct Fallback { std::string path; std::unordered_set<std::string> names; void* scene{}; };
+inline AllyDetour loadHook, dumpHook, findHook;
+inline std::unordered_set<std::string> wanted;
+inline std::vector<Fallback> fallbacks;
+inline void (*logger)(const char*){};
+inline ReadFn readScene = reinterpret_cast<ReadFn>(0x5ef7f0);
+inline RemoveFn removeScene = reinterpret_cast<RemoveFn>(0x5ef880);
+inline std::string folded(std::string text) {
+    for(auto& c:text) if(c>='A'&&c<='Z') c+=32;
+    return text;
+}
+template<class Name> std::vector<Model> preloadList(int count, Name name) {
+    std::vector<Model> result;
+    if(count<0 || count>4096)return result;
+    for(int i=0;i<count;++i) {
+        auto value=name(i);
+        if(value && wanted.count(folded(value))) result.push_back({static_cast<short>(i),1});
+    }
+    result.push_back({-1,0});
+    return result;
+}
+inline int __cdecl findSpecial(void* scene,void* special,const char* name,int quiet) {
+    auto native=reinterpret_cast<FindFn>(findHook.bridge);
+    int found=native(scene,special,name,quiet);
+    if(found || !name)return found;
+    const auto key=folded(name);
+    for(auto& fallback:fallbacks)
+        if(fallback.scene && fallback.scene!=scene && fallback.names.count(key))
+            if(int result=native(fallback.scene,special,name,quiet))return result;
+    return found;
+}
+inline void clearScenes() {
+    // Clear lookup state before releasing native resources.
+    for(auto& fallback:fallbacks) {
+        void* scene=fallback.scene;fallback.scene=nullptr;
+        if(scene)removeScene(scene);
+    }
+}
+inline void __cdecl dumpIcons() {
+    clearScenes();
+    reinterpret_cast<void(__cdecl*)()>(dumpHook.bridge)();
+}
+inline void loadExtra(const Model* list,int permanent,void** buffer,void** end,
+                      const std::vector<Model>& extra) {
+    auto native=reinterpret_cast<LoadFn>(loadHook.bridge);
+    native(list,permanent,buffer,end);
+    if(!buffer || !end || !*buffer || !*end)return;
+    if(extra.size()>1)native(extra.data(),permanent,buffer,end);
+    for(auto& fallback:fallbacks) if(!fallback.scene) {
+        fallback.scene=readScene(buffer,*end,fallback.path.c_str());
+        if(!fallback.scene && logger)logger("Portrait fallback scene could not load; native lookup retained");
+    }
+}
+inline void __cdecl loadIcons(const Model* list,int permanent,void** buffer,void** end) {
+    auto chars=*reinterpret_cast<unsigned char**>(0x93b274);
+    auto count=*reinterpret_cast<int*>(0x93b278);
+    auto objects=*reinterpret_cast<unsigned char**>(0x951bb8);
+    auto objectCount=*reinterpret_cast<int*>(0x951bbc);
+    const auto extra=preloadList(chars&&objects?count:0,[&](int id)->const char* {
+        short icon{};std::memcpy(&icon,chars+id*0x4c+0x42,sizeof(icon));
+        if(icon<0 || icon>=objectCount)return nullptr;
+        return *reinterpret_cast<const char**>(objects+icon*8+4);
+    });
+    loadExtra(list,permanent,buffer,end,extra);
+}
+inline void removeHooks() {
+    // Initialization rollback runs before any game assets can load.
+    findHook.remove();dumpHook.remove();loadHook.remove();
+    wanted.clear();fallbacks.clear();
+}
+inline bool install(const std::wstring& catalog,void (*log)(const char*)) {
+    logger=log;
+    const int count=GetPrivateProfileIntW(L"Portraits",L"Count",0,catalog.c_str());
+    const int resources=GetPrivateProfileIntW(L"Portraits",L"FallbackCount",0,catalog.c_str());
+    if(count<0||count>4096||resources<0||resources>64)return false;
+    auto read=[&](const std::wstring& section,const std::wstring& key) {
+        wchar_t value[256]{};
+        GetPrivateProfileStringW(section.c_str(),key.c_str(),L"",value,256,catalog.c_str());
+        std::string result;
+        for(auto c:value) {if(!c)break;if(c>127)return std::string{};result.push_back(static_cast<char>(c));}
+        return result;
+    };
+    for(int i=0;i<count;++i) {
+        auto name=read(L"Portraits",L"Icon"+std::to_wstring(i));
+        if(name.empty()||name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")!=std::string::npos) {removeHooks();return false;}
+        wanted.insert(folded(name));
+    }
+    for(int i=0;i<resources;++i) {
+        auto section=L"PortraitFallback"+std::to_wstring(i);
+        Fallback fallback;fallback.path=read(section,L"Path");
+        // Paths are generated by the importer and always remain in STUFF/ICONS.
+        if(fallback.path.compare(0,25,"stuff\\icons\\tcs_fallback_")!=0 ||
+           fallback.path.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_\\.")!=std::string::npos ||
+           fallback.path.find("..")!=std::string::npos) {removeHooks();return false;}
+        int names=GetPrivateProfileIntW(section.c_str(),L"Count",0,catalog.c_str());
+        if(names<1||names>4096){removeHooks();return false;}
+        for(int n=0;n<names;++n) {
+            auto name=read(section,L"Name"+std::to_wstring(n));
+            if(name.empty()){removeHooks();return false;}
+            fallback.names.insert(folded(name));
+        }
+        fallbacks.push_back(std::move(fallback));
+    }
+    if(wanted.empty()&&fallbacks.empty())return true;
+    const unsigned char loadSignature[]{0x81,0xec,0x08,0x01,0x00,0x00};
+    const unsigned char dumpSignature[]{0x8b,0x0d,0x70,0xb2,0x93,0x00};
+    const unsigned char findSignature[]{0x53,0x55,0x56,0x8b,0x74,0x24,0x10};
+    // All three prologues end at instruction boundaries and have no PC-relative operands.
+    if(!loadHook.install(reinterpret_cast<void*>(0x55b6e0),loadIcons,loadSignature,sizeof(loadSignature)) ||
+       !dumpHook.install(reinterpret_cast<void*>(0x55b7f0),dumpIcons,dumpSignature,sizeof(dumpSignature)) ||
+       !findHook.install(reinterpret_cast<void*>(0x5cf5b0),findSpecial,findSignature,sizeof(findSignature))) {
+        removeHooks();log("Portrait hooks unavailable or conflicting; native portrait loading retained");return false;
+    }
+    log("Portrait compatibility enabled: individual preloads and winner-first shared fallbacks");
+    return true;
+}
+}

@@ -19,6 +19,8 @@
 #include "native_pause_menu.h"
 #include "pause_menu.h"
 #include "asset_overlay.h"
+#include "saga_compat.h"
+#include "shop_capacity.h"
 
 #pragma comment(lib,"winmm.lib")
 namespace {
@@ -45,6 +47,8 @@ bool captureKey=false;
 Plugin* selectedPlugin=nullptr;
 HRESULT lastResetResult=S_OK;
 bool nativeResetInProgress=false;
+bool displayMessageQueued=false;
+constexpr UINT displayApplyMessage=WM_APP+0x4c2;
 DWORD confirmDeadline{};
 int priorWidth=1280,priorHeight=720,priorMode=0,priorVsync=1,priorFpsCap=0;
 DWORD lastFrame{};
@@ -131,12 +135,18 @@ void applyPending() {
     // updates the viewport/dimensions, and rebuilds render targets and state.
     // Calling Reset alone leaves those resources alive and the device unusable.
     nativeResetInProgress=true;lastResetResult=E_FAIL;
-    setWindowStyle();
-    reinterpret_cast<void(__thiscall*)(void*,int)>(0x6e3940)(renderer,0);
+    if(saga_compat::videoReady()) {
+        saga_compat::publishVideo(windowMode,vsync);
+        saga_compat::video.window();
+    } else {
+        setWindowStyle();
+        reinterpret_cast<void(__thiscall*)(void*,int)>(0x6e3940)(renderer,0);
+    }
     nativeResetInProgress=false;
     if(SUCCEEDED(lastResetResult)){
         if(!videoPending)restoreVideoSettings();
         log("Display change completed through native renderer lifecycle");
+        saga_compat::persistVideo();
         confirmDeadline=GetTickCount()+15000;
     }else{
         log("Native display change failed; settings restored");
@@ -145,10 +155,21 @@ void applyPending() {
     }
 }
 
+// Saga's WindowApply performs a complete resource teardown/reset. Queue it
+// outside Present so neither renderer still has an active scene/compositor.
+void serviceDisplayChanges() {
+    if(!saga_compat::active){applyPending();return;}
+    if(pendingApply && !displayMessageQueued && gameWindow)
+        displayMessageQueued=PostMessageW(gameWindow,displayApplyMessage,reinterpret_cast<WPARAM>(&pendingApply),0)!=FALSE;
+}
+
 BOOL requestVideo(int w,int h,int mode,int sync) {
+    const bool sagaChanged=saga_compat::videoReady()&&
+        (*saga_compat::video.mode!=saga_compat::windowMode(std::clamp(mode,0,2))||*saga_compat::video.sync!=(sync?1:0));
+    if(saga_compat::active&&!saga_compat::publishVideo(std::clamp(mode,0,2),sync))return FALSE;
     if(revertingVideo){width=w;height=h;windowMode=mode;vsync=sync;activeWindowMode=windowMode;return TRUE;}
     if(!device){width=std::clamp(w,640,7680);height=std::clamp(h,480,4320);windowMode=std::clamp(mode,0,2);activeWindowMode=windowMode;vsync=sync?1:0;pendingApply=false;return TRUE;}
-    if(device&&mode==windowMode&&!pendingApply&&presentation.BackBufferWidth==static_cast<UINT>(w)&&presentation.BackBufferHeight==static_cast<UINT>(h)&&
+    if(!sagaChanged&&device&&mode==windowMode&&!pendingApply&&presentation.BackBufferWidth==static_cast<UINT>(w)&&presentation.BackBufferHeight==static_cast<UINT>(h)&&
         presentation.Windowed==(mode==2?FALSE:TRUE)&&presentation.PresentationInterval==(sync?D3DPRESENT_INTERVAL_ONE:D3DPRESENT_INTERVAL_IMMEDIATE))return TRUE;
     if(!videoPending){priorWidth=width;priorHeight=height;priorMode=windowMode;priorVsync=vsync;priorFpsCap=fpsCap;}
     width=std::clamp(w,640,7680);height=std::clamp(h,480,4320);windowMode=std::clamp(mode,0,2);activeWindowMode=windowMode;vsync=sync?1:0;
@@ -162,7 +183,7 @@ void restoreVideoSettings(){
     for(auto& p:plugins)if(p->id=="tcs.modernoptions")for(auto& s:p->settings){if(s.key=="Resolution")s.value.integer=ri;else if(s.key=="WindowMode")s.value.integer=windowMode;else if(s.key=="VSync")s.value.integer=vsync;else if(s.key=="FrameCap")s.value.integer=ci;else continue;saveSetting(&s);}
     revertingVideo=false;
 }
-void __cdecl requestFrameCap(int cap){fpsCap=std::clamp(cap,0,1000);}
+void __cdecl requestFrameCap(int cap){fpsCap=std::clamp(cap,0,1000);saga_compat::publishCap(fpsCap);saga_compat::persistVideo();}
 TCSModHost host{TCS_MOD_API_VERSION,sizeof(TCSModHost),apiRegisterMod,apiRegisterSetting,apiRegisterDevice,apiRegisterWindow,apiConfigPath,apiLog,requestVideo,requestFrameCap};
 
 std::vector<Setting*> visibleSettings() {
@@ -252,8 +273,8 @@ void closeModSettings(void* menu){
     if(videoPending)revertDisplay();
     menuOpen=false;captureKey=false;
     menuField<short>(menu,0x12)=pauseLastRow;
-    menuField<short>(menu,0x0a)=tcs::modSettingsRow;
-    menuField<int>(menu,0x34)=tcs::modSettingsRow;
+    menuField<short>(menu,0x0a)=static_cast<short>(NativeModSettingsRow());
+    menuField<int>(menu,0x34)=NativeModSettingsRow();
     menuField<int>(menu,0x64)=0;menuField<int>(menu,0x68)=0;
     log("Mod Settings closed; returned to native pause menu");
 }
@@ -313,9 +334,23 @@ void updateModSettings(void* menu){
     }
     menuField<int>(menu,0x64)=0;
 }
-void applyStyle(D3DPRESENT_PARAMETERS* p) { if(videoOptionsLoaded){setWindowStyle();applyWindow(p);} }
+void applyStyle(D3DPRESENT_PARAMETERS* p) {
+    if(!videoOptionsLoaded)return;
+    if(saga_compat::active) {
+        // Select the initial device mode; do not immediately reset a newly
+        // created device. Preserve Saga's already-computed backbuffer size.
+        p->Windowed=activeWindowMode==2?FALSE:TRUE;
+        p->BackBufferFormat=p->Windowed?D3DFMT_UNKNOWN:D3DFMT_X8R8G8B8;
+        p->FullScreen_RefreshRateInHz=0;
+        setWindowStyle();
+        return;
+    }
+    setWindowStyle();applyWindow(p);
+}
 LRESULT CALLBACK GameProc(HWND h,UINT m,WPARAM w,LPARAM l) {
-
+    if(m==displayApplyMessage&&w==reinterpret_cast<WPARAM>(&pendingApply)) {
+        displayMessageQueued=false;applyPending();return 0;
+    }
     if(menuOpen&&captureKey&&m==WM_KEYDOWN){
         if(w==VK_ESCAPE)captureKey=false;
         else {auto list=rows();if(selectedRow>=0&&selectedRow<static_cast<int>(list.size())&&list[selectedRow].setting){list[selectedRow].setting->value.integer=static_cast<int>(w);saveSetting(list[selectedRow].setting);}captureKey=false;}
@@ -344,6 +379,9 @@ void loadZip(const std::wstring& zip,const std::wstring& filename){
     if(GetFileAttributesW(manifest.c_str())==INVALID_FILE_ATTRIBUTES)return; // Legacy assets are handled by the importer.
     GetPrivateProfileStringW(L"Mod",L"Id",L"",id,256,manifest.c_str());GetPrivateProfileStringW(L"Mod",L"Entry",L"",entry,260,manifest.c_str());
     if(!id[0]||!entry[0]||wcschr(entry,L'/')||wcschr(entry,L'\\')){log("Invalid mod manifest; skipping archive");return;}
+    if(saga_compat::suppressedPlugin(id)) {
+        log("Saga Tweaks owns startup skipping; Skip Splash plugin skipped for this run");return;
+    }
     std::wstring dll=dest+L"\\"+entry;HMODULE m=LoadLibraryW(dll.c_str());if(!m){log("Mod entry DLL failed to load; skipping archive");return;}
     auto init=reinterpret_cast<TCSModInitialize>(GetProcAddress(m,"TCSMod_Initialize"));if(!init)init=reinterpret_cast<TCSModInitialize>(GetProcAddress(m,"_TCSMod_Initialize"));
     if(!init){FreeLibrary(m);log("Mod has no supported initialization export");return;}
@@ -356,7 +394,7 @@ void loadPlugins() {
 }
 HRESULT STDMETHODCALLTYPE hookReset(IDirect3DDevice9* dev,D3DPRESENT_PARAMETERS* p){
     notifyReset(true);
-    if(videoOptionsLoaded)applyWindow(p);
+    if(videoOptionsLoaded&&!saga_compat::active)applyWindow(p);
     HRESULT hr=realReset(dev,p);
     if(FAILED(hr)&&nativeResetInProgress){
         log("Requested Reset failed; recovering previous display mode before resources are rebuilt");
@@ -368,7 +406,7 @@ HRESULT STDMETHODCALLTYPE hookReset(IDirect3DDevice9* dev,D3DPRESENT_PARAMETERS*
     if(SUCCEEDED(hr))presentation=*p;
     notifyReset(false);return hr;
 }
-HRESULT STDMETHODCALLTYPE hookPresent(IDirect3DDevice9* dev,const RECT* a,const RECT* b,HWND c,const RGNDATA* e){if(videoPending&& !pendingApply && static_cast<LONG>(GetTickCount()-confirmDeadline)>=0){width=priorWidth;height=priorHeight;windowMode=priorMode;activeWindowMode=windowMode;vsync=priorVsync;fpsCap=priorFpsCap;videoPending=false;pendingApply=true;restoreVideoSettings();writeOptions();}applyPending();if(fpsCap>0){DWORD now=timeGetTime();DWORD frame=1000/static_cast<DWORD>(fpsCap);if(lastFrame&&now-lastFrame<frame)Sleep(frame-(now-lastFrame));lastFrame=timeGetTime();}static bool observed=false;if(!observed){observed=true;log("D3D9 Present hook active");}return realPresent(dev,a,b,c,e);}
+HRESULT STDMETHODCALLTYPE hookPresent(IDirect3DDevice9* dev,const RECT* a,const RECT* b,HWND c,const RGNDATA* e){MaintainNativePauseMenu();if(videoPending&& !pendingApply && static_cast<LONG>(GetTickCount()-confirmDeadline)>=0){width=priorWidth;height=priorHeight;windowMode=priorMode;activeWindowMode=windowMode;vsync=priorVsync;fpsCap=priorFpsCap;videoPending=false;pendingApply=true;restoreVideoSettings();writeOptions();}serviceDisplayChanges();if(fpsCap>0&&!saga_compat::active){DWORD now=timeGetTime();DWORD frame=1000/static_cast<DWORD>(fpsCap);if(lastFrame&&now-lastFrame<frame)Sleep(frame-(now-lastFrame));lastFrame=timeGetTime();}static bool observed=false;if(!observed){observed=true;log("D3D9 Present hook active");}return realPresent(dev,a,b,c,e);}
 HRESULT STDMETHODCALLTYPE hookEndScene(IDirect3DDevice9* dev){for(auto& p:plugins)if(p->endScene)p->endScene(dev,p->context);return realEndScene(dev);}
 
 void deviceCreated(HWND w,IDirect3DDevice9* d) { gameWindow=w;device=d;InstallNativePauseMenu(openModSettings,modSettingsOpen,drawModSettings,updateModSettings,log);if(!hookedDevice){auto vt=*reinterpret_cast<void***>(d);DWORD old;VirtualProtect(vt+16,sizeof(void*)*27,PAGE_READWRITE,&old);realReset=reinterpret_cast<ResetFn>(vt[16]);realPresent=reinterpret_cast<PresentFn>(vt[17]);realEndScene=reinterpret_cast<EndSceneFn>(vt[42]);
@@ -382,7 +420,7 @@ VirtualProtect(vt+16,sizeof(void*)*27,old,&old);hookedDevice=d;}
 HRESULT STDMETHODCALLTYPE hookCreateDevice(IDirect3D9* self,UINT adapter,D3DDEVTYPE type,HWND window,DWORD flags,D3DPRESENT_PARAMETERS* p,IDirect3DDevice9** out) {
     log("Creating game graphics device");
     gameWindow=window;D3DPRESENT_PARAMETERS original=*p;applyStyle(p);auto hr=realCreateDevice(self,adapter,type,window,flags,p,out);
-    if(FAILED(hr)){*p=original;if(videoOptionsLoaded){width=1280;height=720;windowMode=0;activeWindowMode=0;vsync=1;fpsCap=0;setWindowStyle();applyWindow(p);writeOptions();}log("Configured device creation failed; retrying the game's original display parameters");hr=realCreateDevice(self,adapter,type,window,flags,p,out);}
+    if(FAILED(hr)){*p=original;if(videoOptionsLoaded&&!saga_compat::active){width=1280;height=720;windowMode=0;activeWindowMode=0;vsync=1;fpsCap=0;setWindowStyle();applyWindow(p);writeOptions();}log("Configured device creation failed; retrying the game's original display parameters");hr=realCreateDevice(self,adapter,type,window,flags,p,out);}
     if(SUCCEEDED(hr)&&out&&*out){presentation=*p;deviceCreated(window,*out);log("Game graphics device ready");}return hr;
 }
 void loadCoreConfig(){optionsConfig=iniPath(L"TCSModLoader.ini");}
@@ -390,7 +428,7 @@ void loadCoreConfig(){optionsConfig=iniPath(L"TCSModLoader.ini");}
 
 extern "C" IDirect3D9* WINAPI ProxyCreate9(UINT version) {
     static bool initialized=false;
-    if(!realD3D){wchar_t path[MAX_PATH];GetSystemDirectoryW(path,MAX_PATH);wcscat_s(path,L"\\d3d9.dll");realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;timeBeginPeriod(1);logFile=_fsopen("TCSModernOptions.log","w",_SH_DENYNO);wchar_t exe[MAX_PATH];GetModuleFileNameW(nullptr,exe,MAX_PATH);wchar_t* slash=wcsrchr(exe,L'\\');if(slash){slash[1]=0;root=exe;}if(!initialized){initialized=true;loadCoreConfig();PrepareAssetOverlay(root,host,log);loadPlugins();log("TCS Modern Options loader initialized");}}
+    if(!realD3D){wchar_t path[MAX_PATH];GetSystemDirectoryW(path,MAX_PATH);wcscat_s(path,L"\\d3d9.dll");realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;timeBeginPeriod(1);logFile=_fsopen("TCSModernOptions.log","w",_SH_DENYNO);wchar_t exe[MAX_PATH];GetModuleFileNameW(nullptr,exe,MAX_PATH);wchar_t* slash=wcsrchr(exe,L'\\');if(slash){slash[1]=0;root=exe;}if(!initialized){initialized=true;loadCoreConfig();if(PrepareAssetOverlay(root,host,log))saga_compat::loadPrepared(root,log);ConfigureSagaPauseMenu(saga_compat::pauseUpdate,saga_compat::pauseRow);shop_capacity::install(log);loadPlugins();log("TCS Modern Options loader initialized");}}
     log("Creating native Direct3D9 interface");
     auto fn=reinterpret_cast<IDirect3D9*(WINAPI*)(UINT)>(GetProcAddress(realD3D,"Direct3DCreate9"));auto d=fn(version);
     log(d?"Native Direct3D9 interface ready":"Native Direct3D9 interface failed");

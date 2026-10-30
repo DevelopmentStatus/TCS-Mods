@@ -120,8 +120,8 @@ def supplements(archive, files, ignored):
 class Archive:
     def __init__(self, path):
         self.path = Path(path)
-        if self.path.suffix.lower() not in {'.rar', '.zip'}:
-            raise ValueError('Only ZIP and RAR are supported')
+        if self.path.suffix.lower() not in {'.rar', '.zip', '.7z'}:
+            raise ValueError('Only ZIP, RAR and 7z are supported')
         self.zip = zipfile.ZipFile(path) if self.path.suffix.lower() == '.zip' else None
 
     def members(self):
@@ -154,6 +154,55 @@ class Archive:
     def close(self):
         if self.zip:
             self.zip.close()
+
+
+def registration_candidates(archive, files, generated, texts):
+    """Infer missing roster records only from a config/model/collection trio.
+
+    Does not invent purchase rules, edit saves, or replace an explicit roster
+    record. Baseline registrations are checked again by the ordered merger.
+    """
+    targets = {item['target']: item for item in files}
+    if profile(targets) == 'level-pack':
+        return [], []
+    def value(target):
+        if target in generated:
+            return generated[target]
+        item = targets.get(target)
+        return archive.read(item['member']).decode('utf-8-sig', errors='replace') if item else ''
+    collected = {name.upper() for name in re.findall(r'^\s*collect\s+"([^"\r\n]+)"',
+                 value('CHARS/COLLECTION.TXT'), re.I | re.M)}
+    explicit = {name.upper() for block in re.findall(r'\bchar_start\b(.*?)\bchar_end\b',
+                value('CHARS/CHARS.TXT'), re.I | re.S)
+                for name in re.findall(r'\bfile\s+"([^"\r\n]+)"', block, re.I)}
+    configs = {}
+    for item in files:
+        path = PurePosixPath(item['target'])
+        if path.parts[0] == 'CHARS' and len(path.parts) >= 3 and path.suffix == '.TXT':
+            configs.setdefault(path.stem, []).append(item)
+    candidates, diagnostics = [], []
+    for name, entries in sorted(configs.items()):
+        if name in explicit:
+            continue
+        if name not in collected:
+            continue  # Uncollected helpers/NPCs are not assumed to be playable.
+        if len(entries) != 1:
+            diagnostics.append(dict(character=name, status='unresolved', reason='Ambiguous config directories'))
+            continue
+        config = entries[0]
+        content = texts.get(config['member'], '')
+        if not re.search(r'^\s*name_id\s*=\s*\d+\b', content, re.I | re.M):
+            diagnostics.append(dict(character=name, status='unresolved', reason='No readable character name_id'))
+            continue
+        path = PurePosixPath(config['target'])
+        model = str(path.with_name(name + '_PC.GHG'))
+        if model not in targets:
+            diagnostics.append(dict(character=name, status='unresolved', reason='Matching character model not supplied'))
+            continue
+        folder = '/'.join(path.parts[1:-1])
+        candidates.append(dict(character=name, directory=folder, config=config['target'], model=model,
+                               reason='Supplied character config, matching model and collection entry'))
+    return candidates, diagnostics
 
 
 def inspect(path, game=None, selections=lambda key: 0):
@@ -197,10 +246,12 @@ def inspect(path, game=None, selections=lambda key: 0):
         unresolved = [m for m in ignored if PurePosixPath(m).suffix.upper() in
                       EXTENSIONS - {'.TXT', '.CSV', '.CFG'}]
         generated, sources = supplements(archive, files, ignored)
+        auto_registrations, registration_diagnostics = registration_candidates(archive, files, generated, texts)
         for target in generated:
             files.append(dict(member=None, target=target, kind=classify(target)))
         return dict(archive=str(Path(path).resolve()), files=files, ignored=ignored,
                     generated=generated, snippet_sources=sources,
+                    auto_registrations=auto_registrations, registration_diagnostics=registration_diagnostics,
                     inferred=[dict(member=m, target=resolved[m], reason=r)
                               for m, r in inferred.items() if m in resolved],
                     variants=choices, excluded_variants=excluded,

@@ -15,6 +15,8 @@ from import_assets import Archive, inspect, stage
 from tcs_dat import Dat
 from asset_conflicts import overlaps
 from asset_version import VERSION
+from portrait_assets import prepare as prepare_portraits
+import native_asi
 
 
 def text(data):
@@ -91,7 +93,7 @@ def scan_packages(game):
     mods.mkdir(exist_ok=True)
     packages = []
     for path in sorted(mods.iterdir(), key=lambda p: p.name.casefold()):
-        if not path.is_file() or path.suffix.lower() not in {'.zip', '.rar'}:
+        if not path.is_file() or path.suffix.lower() not in {'.zip', '.rar', '.7z'}:
             continue
         identity = package_id(path.name)
         report = dict(archive=str(path.resolve()), id=identity, enabled=True,
@@ -101,9 +103,9 @@ def scan_packages(game):
             report['priority'] = max(0, min(1000, setting(game, identity, 'Priority', 100)))
             # A disabled broken archive must not prevent every other mod loading.
             if report['enabled']:
-                if is_plugin(path):
+                if path.suffix.lower() == '.zip' and is_plugin(path):
                     continue
-                report.update(inspect_package(game, path, identity))
+                report.update(native_asi.inspect(path) or inspect_package(game, path, identity))
         except Exception as error:
             report.update(error=str(error), status='failed', files=[], variants=[])
         packages.append(report)
@@ -133,10 +135,10 @@ def fingerprint(game, mods):
     except (OSError, ValueError):
         cached = {}
     hashes = {}
-    paths = [p for p in mods.iterdir() if p.is_file() and p.suffix.lower() in {'.zip', '.rar'}]
+    paths = [p for p in mods.iterdir() if p.is_file() and p.suffix.lower() in {'.zip', '.rar', '.7z'}]
     for path in sorted(paths, key=lambda p: str(p).casefold()):
         digest.update(str(path.relative_to(mods)).casefold().encode('utf-8'))
-        if path.suffix.lower() in {'.zip', '.rar'}:
+        if path.suffix.lower() in {'.zip', '.rar', '.7z'}:
             stat = path.stat()
             stamp = [stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns]
             key = path.name.casefold()
@@ -200,7 +202,7 @@ def build(game, review=None):
     active = generation / 'Active'
     active.mkdir()
     packages = scan_packages(game)
-    errors, conflicts, owners = [], [], {}
+    errors, conflicts, owners, native_plugins = [], [], {}, []
     dat = None
     catalog = configparser.ConfigParser(interpolation=None)
     for number, report in enumerate(packages):
@@ -237,6 +239,10 @@ def build(game, review=None):
             continue
         stage_dir = generation / report['id']
         try:
+            if report.get('profile') == 'asi':
+                native_plugins.extend(native_asi.stage(report, generation))
+                report['status'] = 'enabled'
+                continue
             stage(report, stage_dir)
             assets = {i['target']: stage_dir / ('assets' if i['kind'] == 'asset' else 'review') / i['target']
                       for i in report['files']}
@@ -267,6 +273,22 @@ def build(game, review=None):
                 updates[target] = merge_owned(updates.get(target, baseline(target)),
                     'collect "ATAT_DRIVER" area_complete "hothbattle" buy_in_shop 22000',
                     {'ATAT_DRIVER'}, collection)
+            if report.get('auto_registrations'):
+                target = 'CHARS/CHARS.TXT'
+                roster = updates.get(target, baseline(target))
+                registered = blocks(roster)
+                for candidate in report['auto_registrations']:
+                    name, folder = candidate['character'], candidate['directory']
+                    if name in registered:
+                        report['registration_diagnostics'].append(dict(character=name, status='existing',
+                            reason='Existing roster record retained'))
+                        continue
+                    record = f'char_start\r\n\tdir "{folder}"\r\n\tfile "{name}"\r\nchar_end'
+                    roster = roster.rstrip() + '\r\n' + record + '\r\n'
+                    registered[name] = record
+                    report['registration_diagnostics'].append(dict(character=name, status='registered',
+                        reason=candidate['reason'], config=candidate['config'], model=candidate['model']))
+                updates[target] = roster
             for target, path in assets.items():
                 if target in updates:
                     continue
@@ -291,11 +313,27 @@ def build(game, review=None):
         path = active / target
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(value.encode('utf-8-sig' if target.startswith('STUFF/TEXT/') else 'utf-8'))
-    result = dict(complete=True, packages=packages, conflicts=conflicts, errors=errors,
+    portraits = prepare_portraits(active, packages, generation)
+    # As with asset files, the last enabled provider wins duplicate ASI names.
+    selected_native = {entry['name'].casefold(): entry for entry in native_plugins}
+    native_plugins = list(selected_native.values())
+    result = dict(complete=True, packages=packages, conflicts=conflicts, errors=errors, portraits=portraits,
+                  native_plugins=native_plugins,
                   active=str(active), fingerprint=signature, overlaps=overlaps(packages),
                   priority='Higher wins; filename breaks ties')
     (generation / 'report.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
-    catalog['Overlay'] = dict(Path=str(active), Count=str(len(packages)), Report=str(generation / 'report.json'))
+    catalog['Overlay'] = dict(Path=str(active), Count=str(len(packages)), Report=str(generation / 'report.json'),
+                              NativeCount=str(len(native_plugins)))
+    for index, entry in enumerate(native_plugins):
+        catalog['NativePlugin' + str(index)] = dict(Source=entry['source'], Name=entry['name'],
+                                                   Profile=entry['profile'])
+    catalog['Portraits'] = dict(Count=str(len(portraits['preloads'])),
+                              FallbackCount=str(len(portraits['fallbacks'])))
+    for index, icon in enumerate(portraits['preloads']):
+        catalog['Portraits']['Icon' + str(index)] = icon
+    for index, fallback in enumerate(portraits['fallbacks']):
+        catalog['PortraitFallback' + str(index)] = dict(Path=fallback['path'], Count=str(len(fallback['names'])),
+            **{'Name' + str(i): name for i, name in enumerate(fallback['names'])})
     pending = generation / 'catalog.ini'
     with pending.open('w', encoding='utf-16') as stream:
         catalog.write(stream)

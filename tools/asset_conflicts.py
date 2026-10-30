@@ -27,6 +27,8 @@ def overlaps(packages):
         mode = ('Merge-aware table' if mergeable and
                 all(by_id[i].get('profile') != 'level-pack' for i in ids)
                 else 'File replacement')
+        if target == 'STUFF/ICONS/STARWARS_ICONS_ALL_PC.GSC':
+            mode = 'Portrait fallback'
         rows.append(dict(target=target, providers=ids, winner=ids[-1], mode=mode))
     return rows
 

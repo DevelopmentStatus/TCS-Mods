@@ -240,7 +240,9 @@ class LoadOrderWindow:
         row = self.rows[int(selected[0])]
         names = [Path(self.by_id[i]['archive']).stem for i in row['providers']]
         behavior = ('Character entries are merged in this order; overlapping entries use the later mod.'
-                    if row['mode'] == 'Merge-aware table' else 'The last mod supplies the complete file.')
+                    if row['mode'] == 'Merge-aware table' else
+                    'The later shared scene wins. Missing portrait names can use earlier scenes as fallbacks.'
+                    if row['mode'] == 'Portrait fallback' else 'The last mod supplies the complete file.')
         self.set_details(row['target'] + '\n' + behavior + '\n\nEarlier → later:\n' + '\n'.join(names))
 
     def sort_mods(self):

@@ -1,6 +1,37 @@
-# Drag-and-drop asset mods - loader 1.6.6
+# Drag-and-drop asset mods - loader 1.6.11
 
 For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
+
+## Character packs without a complete roster
+
+In 1.6.11, the importer can register a missing character when the same archive
+supplies its named config, matching _PC.GHG model in the same game directory,
+and collection entry. Inherited txt_file configs are supported. Existing and
+explicit roster records are retained, and unlock rules/prices are unchanged.
+This handles packs such as Obi Wan Kenobi Expansion 1 without a custom adapter.
+It does not treat every TXT as a character or assume that uncollected NPCs are
+playable. Ambiguous directories and missing evidence are reported rather than
+guessed. Coordinated level/world-pack tables keep their original handling.
+
+See each package's auto_registrations and registration_diagnostics in the
+generated report.json for evidence and outcomes. This version rebuilds the
+overlay once to apply the new import behavior; mod archives and saves are not
+edited. A successful roster registration does not bypass collection unlocks.
+
+## Saga Tweaks without Universal ASI Loader
+
+Loader 1.6.8 accepts the supplied Saga Tweaks 1.2.0 .7z directly in Mods, kept
+compressed. Replace both d3d9.dll and TCSAssetManager.exe with this release.
+Only the verified 1.2.0 SagaTweaks.asi is supported; unrelated ASIs or changed
+Saga binaries are rejected. The original archive and ASI bytes are unchanged.
+
+Its INI/log are kept beside the stable generated ASI under
+Mods/Loaded/ASI/SagaTweaks. Use Saga's Tweaks/Video Settings pages for its
+options. TCS Modern Options v0.4.0 remains loaded and forwards its display
+settings through Saga's exported controls. Only TCS Skip Splash is skipped
+while Saga is active. Mod Settings appears below Effects Settings, with Saga's
+native row indices translated during dispatch.
+Remove/disable the Saga archive and restart to restore the normal plugin set.
 
 ## Install and use
 
@@ -42,9 +73,19 @@ Disabling a package has the same effect after restart. Changes are not hot-reloa
 Higher priority wins binary-file conflicts. Equal priorities are resolved by
 filename order, with the later filename winning. Shared character lists are
 merged only for characters defined by the package. Language edits are limited
-to name IDs used by the package's character definitions. Combined binary icon
-resources are replacements, not merged images, and can conflict with other
-icon packs. Inspect Mods/Assets/import.log for the selected winners/errors.
+to name IDs used by the package's character definitions. The selected shared
+icon scene wins overlapping portrait names; valid earlier scenes can supply
+names it lacks. This preserves separate scene payloads rather than concatenating
+binary files. Individual portrait scenes with matching names are preloaded and
+released through the game's icon lifecycle. Known KOTOR template mismatches get
+generated filename/internal-name aliases, including distinct Bastila variants.
+Inspect Mods/Assets/import.log and report.json's portraits section for repairs,
+unresolved overlay references, preload names and shared fallback sources.
+
+Version 1.6.7 invalidates the previous overlay cache automatically. Replace both
+d3d9.dll and TCSAssetManager.exe together, with the game closed. No save edits or
+archive repacking are required. Unsupported/conflicting native portrait hook
+signatures are logged and leave the game's portrait-loading behavior intact.
 
 The loader never modifies or repacks the installed DAT files and never copies
 replacement assets over the original game directories. It redirects native

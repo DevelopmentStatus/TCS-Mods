@@ -17,6 +17,11 @@ def package(number, priority=100, enabled=True, profile='character-assets'):
 
 
 class ConflictTests(unittest.TestCase):
+    def test_shared_portrait_scene_has_fallback_label(self):
+        a, b = package(1), package(2)
+        a['files'] = b['files'] = [dict(target='STUFF/ICONS/STARWARS_ICONS_ALL_PC.GSC')]
+        self.assertEqual(overlaps([a, b])[0]['mode'], 'Portrait fallback')
+
     def test_only_enabled_overlapping_priority_ties_need_review(self):
         a, b, c = package(1, 100), package(2, 200), package(3, 100, enabled=False)
         self.assertFalse(tied_overlaps([a, b, c]))

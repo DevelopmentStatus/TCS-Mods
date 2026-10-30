@@ -21,19 +21,26 @@ void (*updateSettings)(void*){};
 void (*writeLog)(const char*){};
 bool installed{};
 bool firstDraw{}, firstUpdate{};
+UpdateMenu sagaUpdate{};
+int modSettingsRow=tcs::modSettingsRow;
+int* sagaTweaksRow{};
+UpdateMenu nativeDraw=reinterpret_cast<UpdateMenu>(0x495b50);
+UpdateMenu nativeUpdate=reinterpret_cast<UpdateMenu>(updateAddress);
+DrawEntry nativeDrawEntry=reinterpret_cast<DrawEntry>(drawEntryAddress);
 
 template<class T> T& field(void* menu, size_t offset) {
     return *reinterpret_cast<T*>(static_cast<unsigned char*>(menu) + offset);
 }
 void __cdecl drawPause(void* menu) {
     if (settingsOpen()) drawSettings(menu);
-    else reinterpret_cast<void(__cdecl*)(void*)>(0x495b50)(menu);
+    else nativeDraw(menu);
 }
 void __cdecl drawEffectsAndMods(void* menu, const char* effects) {
-    auto draw = reinterpret_cast<DrawEntry>(drawEntryAddress);
+    MaintainNativePauseMenu();
+    auto draw = nativeDrawEntry;
     draw(menu, effects);
     draw(menu, "Mod Settings");
-    if (!firstDraw) { firstDraw=true; writeLog("Pause hook: native Mod Settings row drawn below Effects Settings"); }
+    if (!firstDraw) { firstDraw=true; writeLog("Pause hook: Mod Settings drawn inline below Effects Settings"); }
 }
 void __cdecl updatePause(void* menu) {
     if (!firstUpdate) { firstUpdate=true; writeLog("Pause hook: native pause update active"); }
@@ -43,16 +50,23 @@ void __cdecl updatePause(void* menu) {
         return;
     }
     int selected = field<int>(menu, 0x34);
-    if (selected==tcs::modSettingsRow && field<int>(menu, 0x64)) {
+    if (selected==modSettingsRow && field<int>(menu, 0x64)) {
         field<int>(menu, 0x64)=0;
         writeLog("Pause hook: Mod Settings selected");
         openSettings(menu);
         return;
     }
-    // Keep native Extras, Drop Out and Quit dispatch correct after insertion.
+    // Translate both cursor representations and Saga's drawn Tweaks row into
+    // the original menu's coordinate system for the duration of dispatch.
+    const int oldTweaks=sagaTweaksRow?*sagaTweaksRow:0;
+    if(sagaTweaksRow)*sagaTweaksRow=tcs::originalPauseRow(oldTweaks);
     field<int>(menu, 0x34)=tcs::originalPauseRow(selected);
-    reinterpret_cast<UpdateMenu>(updateAddress)(menu);
-    field<int>(menu, 0x34)=selected;
+    field<short>(menu,0x0a)=static_cast<short>(tcs::originalPauseRow(selected));
+    if(sagaUpdate)sagaUpdate(menu);else nativeUpdate(menu);
+    if(sagaTweaksRow)*sagaTweaksRow=oldTweaks;
+    const int returned=field<int>(menu,0x34);
+    const int restored=returned==tcs::originalPauseRow(selected)?selected:(returned>=modSettingsRow?returned+1:returned);
+    field<int>(menu,0x34)=restored;field<short>(menu,0x0a)=static_cast<short>(restored);
 }
 bool writableCopy(uintptr_t address, const void* value, size_t size) {
     DWORD old{};
@@ -63,6 +77,25 @@ bool writableCopy(uintptr_t address, const void* value, size_t size) {
     VirtualProtect(reinterpret_cast<void*>(address),size,old,&unused);
     return true;
 }
+}
+
+void ConfigureSagaPauseMenu(void (__cdecl *update)(void*),int* tweaksRow) {
+    sagaUpdate=update;sagaTweaksRow=tweaksRow;modSettingsRow=tcs::modSettingsRow;
+}
+int NativeModSettingsRow() {return modSettingsRow;}
+
+template<class Write> bool RepairPauseSlots(uintptr_t draw,uintptr_t update,Write write) {
+    const auto wrapperDraw=reinterpret_cast<uintptr_t>(drawPause),wrapperUpdate=reinterpret_cast<uintptr_t>(updatePause);
+    if((draw!=0x495b50 && draw!=wrapperDraw) ||
+       (update!=updateAddress && update!=wrapperUpdate && (!sagaUpdate||update!=reinterpret_cast<uintptr_t>(sagaUpdate))))return false;
+    if(draw!=wrapperDraw)write(runtimeDrawSlot,wrapperDraw);
+    if(update!=wrapperUpdate)write(runtimeDrawSlot+4,wrapperUpdate);
+    return true;
+}
+void MaintainNativePauseMenu() {
+    if(!installed)return;
+    RepairPauseSlots(*reinterpret_cast<uintptr_t*>(runtimeDrawSlot),*reinterpret_cast<uintptr_t*>(runtimeDrawSlot+4),
+        [](uintptr_t slot,uintptr_t value){writableCopy(slot,&value,sizeof(value));});
 }
 
 bool InstallNativePauseMenu(void (*open)(void*), bool (*isOpen)(), void (*draw)(void*),
@@ -105,6 +138,6 @@ bool InstallNativePauseMenu(void (*open)(void*), bool (*isOpen)(), void (*draw)(
         return false;
     }
     installed=true;
-    logger("Pause hook installed: Mod Settings at row 5; native Extras/Drop Out/Quit remapped");
+    logger("Pause hook installed: inline Mod Settings; cursor and Saga Tweaks dispatch remapped");
     return true;
 }

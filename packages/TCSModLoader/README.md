@@ -1,6 +1,90 @@
-# TCS Mod Loader 1.6.6
+# TCS Mod Loader 1.7.3
+
+Fixed in 1.7.3: portraits from later character packs can register past the
+original 750-object limit. The object table moves to 4,096 slots and its name
+pool to 256 KiB, including normal and locked icons. Background character lookup
+and startup/save-icon references follow the relocated table. Existing supplied
+portrait files, preload metadata and save formats are retained.
+
+
+Fixed in 1.7.2: loading a save with more than 340 registered characters no
+longer overwrites the stack guard in the hub character-switching path. Both
+model-ID buffers and the associated random candidate list now match the
+1,000-character registration limit. Save formats/companions are unchanged.
+
+
+Fixed in 1.7.1: character registration now supports 1,000 entries as well as
+the shop. The original global roster stopped at 340 entries, silently dropping
+later packs. The loader replaces the 500-entry/10 KB native parser with a
+bounded dynamic parser that retains the game's lexer, extends character-spawn
+checks, and enlarges hub/Free Play temporary lists safely.
+
+
+New in 1.7.0: the native character shop supports 1,000 entries. Character-item,
+cheat-code and purchase-bit storage is expanded together. Character ownership
+moves out of the original 340-byte save array into bounded runtime storage.
+Added progress is saved beside each native save as a .tcs-characters companion,
+bound to that native snapshot and keyed by character file identity. Keep both
+files when backing up/transferring saves. Native save size/checksum stay intact.
+Story unlock requirements and stud prices still apply. This does not make
+1,000 characters fit onscreen at once or bypass normal Free Play ownership.
+
 
 Supports native DLL plugin ZIPs and legacy TCS asset mods in ZIP/RAR archives.
+
+New in 1.6.11: character packs can omit or partially supply CHARS.TXT. The
+importer adds a missing registration only when the archive supplies a named
+character config, its matching _PC.GHG model and a collection entry. Explicit
+and existing roster records remain authoritative. Inherited configs using
+txt_file are supported. Ambiguous config directories or missing models are
+reported instead of guessed. Purchase/unlock rules and save files are unchanged.
+Level/world-pack coordinated tables keep their existing behavior.
+
+This importer update rebuilds the prepared overlay once. Obi Wan Kenobi
+Expansion 1 now receives its three missing roster registrations; its Dooku-area
+completion requirements still apply. See registration_diagnostics in report.json.
+
+Fixed in 1.6.10: the loader no longer forces a display reset on the first Present
+call after creating the device. Saga window mode is selected before device
+creation; later display changes are queued to the window-message loop rather
+than resetting resources from inside Present. The existing importer/cache is
+unchanged, so this native hotfix does not force asset re-extraction.
+
+New in 1.6.8: leave the supplied Saga Tweaks 1.2.0 .7z directly in Mods. The
+loader imports and loads its verified SagaTweaks.asi without Universal ASI
+Loader. Both the importer and native loader check the supported binary's SHA-256.
+This integration supports that exact 1.2.0 binary, not arbitrary ASI modules.
+
+Fixed in 1.6.9: Mod Settings is drawn inline below Effects Settings again,
+and known native pause handlers are reattached after late menu initialization.
+Saga Tweaks/Extras/Drop Out/Quit dispatch translates both cursor fields and
+Saga's row index around the inserted row.
+
+TCS Modern Options v0.4.0 now loads alongside Saga Tweaks. Its window mode,
+VSync and frame-cap settings are forwarded to Saga's exported controls rather
+than running competing display paths. Startup preferences apply once the native
+device exists; Saga's reset path retains render scaling. Only TCS Skip Splash
+is skipped while Saga is active because both change the same startup branch.
+
+Saga's INI/log live in Mods/Loaded/ASI/SagaTweaks beside its generated ASI. This
+stable folder preserves its settings across overlay rebuilds. Disable the Saga
+archive with its Enabled (restart) control or remove the archive and restart.
+The loader does not scan stale ASIs in generated folders. It does not require
+dinput8.dll and does not redistribute or alter SagaTweaks.asi.
+
+New in 1.6.7: portrait compatibility validates filenames and internal scene
+object names, repairs the known KOTOR Anakin-template icon mismatch in generated
+files, and gives normal/fallen Bastila separate portrait identities. Valid
+individual portraits are preloaded with the game's character icons. Shared icon
+conflicts keep the selected winner and use earlier scenes only for missing names.
+Scenes use the game's allocator and are released with its icon teardown.
+Portrait repairs and unresolved references appear in report.json / import.log.
+Original archives, DATs, save files and saved priorities are unchanged. The new
+version automatically rebuilds the generated overlay on first startup.
+
+Validation: 38 Python tests and 14 native tests passed; an offline copy of the
+installed mod stack repaired 12 KOTOR registrations and preserved the two missing
+Modern Overhaul portrait pairs. Full gameplay has not been verified for this build.
 
 New in 1.6.6: when overlapping enabled mods have equal priorities, Auto-sort runs
 automatically and saves the order. Startup then continues without button clicks.

@@ -2,6 +2,7 @@
 #include "asset_overlay.h"
 #include "ally_detour.h"
 #include "startup_wait.h"
+#include "portrait_runtime.h"
 #include <filesystem>
 #include <unordered_map>
 #include <algorithm>
@@ -118,7 +119,7 @@ bool runImporter(const std::wstring& root) {
     statusClass.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));
     statusClass.lpszClassName=L"TCSAssetPreparation";
     RegisterClassW(&statusClass);
-    HWND progress=CreateWindowExW(WS_EX_APPWINDOW,statusClass.lpszClassName,L"TCS Mod Loader 1.6.6 - Preparing mods",
+    HWND progress=CreateWindowExW(WS_EX_APPWINDOW,statusClass.lpszClassName,L"TCS Mod Loader 1.7.3 - Preparing mods",
         WS_OVERLAPPED|WS_CAPTION|WS_VISIBLE, CW_USEDEFAULT,CW_USEDEFAULT,540,160,
         nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     if(progress) {
@@ -219,8 +220,10 @@ bool PrepareAssetOverlay(const std::wstring& root,const TCSModHost& host,void (*
         bufferHook.remove();sizeHook.remove();existsHook.remove();openHook.remove();overrides.clear();
         log("Asset hooks failed; native assets retained");return false;
     }
+    portrait_runtime::install(catalog,log);
     log("Legacy asset overrides installed; original DAT files unchanged");return true;
 } catch(const std::exception& error) {
+    portrait_runtime::removeHooks();
     bufferHook.remove();sizeHook.remove();existsHook.remove();openHook.remove();overrides.clear();
     log((std::string("Asset overrides disabled: ")+error.what()).c_str());return false;
 }

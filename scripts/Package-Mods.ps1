@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $components = @(
-    @{Name='TCSModLoader'; Version='1.6.6'; Dll='d3d9.dll'},
+    @{Name='TCSModLoader'; Version='1.7.3'; Dll='d3d9.dll'},
     @{Name='TCSFirstPerson'; Version='0.4.0'; Dll='TCSFirstPerson.dll'},
     @{Name='TCSModernOptions'; Version='0.4.0'; Dll='TCSModernOptions.dll'},
     @{Name='TCSAllyDamage'; Version='1.1.1'; Dll='TCSAllyDamage.dll'},
@@ -44,7 +44,7 @@ foreach ($component in $components) {
         }
         $mods = Join-Path $stage 'Mods'
         New-Item -ItemType Directory -Path $mods | Out-Null
-        Set-Content -LiteralPath (Join-Path $mods 'README.txt') -Value 'Place plugin ZIPs or supported asset ZIP/RAR archives directly here. Keep them compressed. Remove an archive and restart to restore underlying assets. See docs/ASSET_IMPORT.md.' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $mods 'README.txt') -Value 'Place plugin ZIPs, supported asset ZIP/RAR archives, or the supported Saga Tweaks 1.2.0 7z directly here. Keep them compressed. Remove an archive and restart to disable it. See docs/ASSET_IMPORT.md.' -Encoding UTF8
     }
     $zip = Join-Path $OutputPath "$($component.Name)-v$($component.Version).zip"
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
