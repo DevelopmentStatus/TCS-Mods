@@ -6,31 +6,32 @@ Targets the validated **32-bit Windows Steam PC build**. These are native C++ DL
 
 ## Loader and optional character extender
 
-Loader 1.8.0 separates the character/shop expansion and companion-save code into
+Loader 1.8.1 adds a prepare-and-launch shortcut. Character/shop expansion and
+companion-save code remain in
 **[Character & Shop Extender 1.0.0](dist/TCSCharacterShopExtender-v1.0.0.zip)**.
 The loader ZIP does not contain that plugin. Add its compressed ZIP to `Mods`
 when using character packs that need expanded tables, private names or portrait
 support. Existing companion saves remain compatible; keep them beside native saves.
 
-With the game closed, use `Manage Mod Priorities.cmd` and **Launch game**, or run
-`Prepare Mods.cmd` before launching normally. Repeat after changing archives or
+With the game closed, double-click **Launch Modded Game.cmd** to prepare and
+start the game. `Manage Mod Priorities.cmd > Launch game` also prepares it. Repeat after changing archives or
 asset settings. Keep `TCSAssetRuntime` beside `TCSAssetManager.exe`.
 The new loader DLL scanned at **0/70**; the separate extender ZIP at **0/67**.
-The final loader ZIP/helper scan status remains unverified after checks stopped
-at the user's request. See [1.8.0 release notes and separate scan results](docs/releases/TCSModLoader-v1.8.0.md).
+The 1.8.1 ZIP has not been scanned; its status is unverified. The DLL/helper
+binaries are unchanged from 1.8.0, and no further scan checks were performed. See [1.8.1 release notes and separate scan results](docs/releases/TCSModLoader-v1.8.1.md).
 
 ## Downloads and mod catalog
 
 Download the ZIPs below using GitHub's **Download raw file** button. Install the loader first, then choose any combination of plugins.
 
-[Loader 1.8.0 package](dist/TCSModLoader-v1.8.0.zip) provides asset importing,
+[Loader 1.8.1 package](dist/TCSModLoader-v1.8.1.zip) provides asset importing,
 plugin loading and Mod Settings. Install the optional extender separately for
 up to 1,000 registered characters/shop entries and compatible companion saves.
 Saga Tweaks / ASI integration remains removed.
 
 | Component | Included build | What it does | Main source |
 | --- | --- | --- | --- |
-| [TCS Mod Loader](dist/TCSModLoader-v1.8.0.zip) | 1.8.0 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [TCS Mod Loader](dist/TCSModLoader-v1.8.1.zip) | 1.8.1 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
 | [Character & Shop Extender](dist/TCSCharacterShopExtender-v1.0.0.zip) | 1.0.0 | Optional expanded character/shop tables, text/portrait capacity and companion saves | [character_shop_extender.cpp](src/character_shop_extender.cpp), [shop_capacity.h](src/shop_capacity.h) |
 | [TCS First Person](dist/TCSFirstPerson-v0.4.0.zip) | 0.4.0 | First-person camera, animated head camera style, orbit camera, mouse aiming, visible body, and PC controls | [mod.cpp](src/mod.cpp) |
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
@@ -38,15 +39,15 @@ Saga Tweaks / ASI integration remains removed.
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
 | [Shop Ownership Fix](dist/TCSShopOwnershipFix-v1.0.0.zip) | 1.0.0 | Corrects false unpurchased shop entries for characters already owned, without changing studs or saves | [shop_ownership.cpp](src/shop_ownership.cpp) |
 
-The loader 1.8.0 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
+The loader 1.8.1 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
 ## Installation
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.8.0.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe`, plus the complete `TCSAssetRuntime` folder, must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.8.1.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe`, plus the complete `TCSAssetRuntime` folder, must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
-5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Run **Manage Mod Priorities.cmd > Launch game**, or run **Prepare Mods.cmd** before launching normally. Open **Pause > Mod Settings** to configure mods.
+5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Double-click **Launch Modded Game.cmd** to prepare and start the game. Use **Manage Mod Priorities.cmd** to edit priorities. Open **Pause > Mod Settings** to configure mods.
 
 Example installation:
 

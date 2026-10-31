@@ -1,5 +1,5 @@
 [center][size=6][b]TCS MOD LOADER[/b][/size]
-[size=4]Version 1.8.0[/size]
+[size=4]Version 1.8.1[/size]
 An easier way to use mods in LEGO Star Wars: The Complete Saga.[/center]
 
 [line]
@@ -9,16 +9,17 @@ TCS Mod Loader imports supported asset mods from ZIP and RAR files and loads nat
 
 Choose which asset mod wins when files overlap, then open [b]Pause > Mod Settings[/b] to change settings offered by installed mods.
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.0][b]Download TCS Mod Loader 1.8.0[/b][/url]
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.1][b]Download TCS Mod Loader 1.8.1[/b][/url]
 [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSCharacterShopExtender-v1.0.0]Download optional Character & Shop Extender 1.0.0[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
 
 [line]
 
-[b][size=4]What changed in 1.8.0?[/size][/b]
+[b][size=4]What changed in 1.8.1?[/size][/b]
 [list]
+[*][b]Use Launch Modded Game.cmd after installing.[/b] This new shortcut prepares plugins and assets, then starts the game only if preparation succeeds. Installing the files without preparing left older plugin caches and character assets inactive. The DLL and helper binaries are unchanged from 1.8.0; this update makes the required launch step easier to follow.
 [*][b]Character/shop expansion is now a separate optional mod.[/b] The loader ZIP does not include Character & Shop Extender. Install its compressed ZIP in Mods when your character packs need expanded tables, private names or extended portrait support.
 [*]The extender preserves up to 1,000 registered characters and shop entries, expanded text/portrait tables and existing companion-save support. Normal story requirements and stud prices still apply.
-[*][b]Prepare mods before starting the game.[/b] Use Manage Mod Priorities.cmd and choose Launch game, or run Prepare Mods.cmd before launching normally. Repeat after changing archives or asset settings.
+[*][b]Prepare mods before starting the game.[/b] Double-click Launch Modded Game.cmd. You can also use Manage Mod Priorities.cmd > Launch game, or run Prepare Mods.cmd before launching normally. Repeat after changing archives or asset settings.
 [*]Keep the complete [b]TCSAssetRuntime[/b] folder beside TCSAssetManager.exe. No separate Python or QuickBMS installation is needed.
 [*]Saga Tweaks / ASI integration has been removed. The earlier built-in support for running Saga Tweaks without Universal ASI Loader is no longer provided.
 [/list]
@@ -30,10 +31,10 @@ Choose which asset mod wins when files overlap, then open [b]Pause > Mod Setting
 [list=1]
 [*]Close the game and open the folder containing [b]LEGOStarWarsSaga.exe[/b].
 [*]Back up any existing [b]d3d9.dll[/b]. Multiple mods cannot use that same filename at once; compatibility with other proxy DLLs has not been established.
-[*]Download [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.0]loader 1.8.0 from GitHub Releases[/url]. Extract [b]all[/b] its files and folders into the game folder. d3d9.dll, TCSAssetManager.exe, Prepare Mods.cmd, Manage Mod Priorities.cmd and the complete TCSAssetRuntime folder belong beside the game EXE.
+[*]Download [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.1]loader 1.8.1 from GitHub Releases[/url]. Extract [b]all[/b] its files and folders into the game folder. d3d9.dll, TCSAssetManager.exe, Launch Modded Game.cmd, Prepare Mods.cmd, Manage Mod Priorities.cmd and the complete TCSAssetRuntime folder belong beside the game EXE.
 [*]Put supported mod ZIP/RAR files directly in [b]Mods[/b]. Keep mod archives compressed.
 [*]For character packs requiring the extender, download [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSCharacterShopExtender-v1.0.0]Character & Shop Extender 1.0.0[/url] and put that ZIP directly in Mods. [b]Do not extract the extender ZIP.[/b]
-[*]Run [b]Manage Mod Priorities.cmd > Launch game[/b], or run [b]Prepare Mods.cmd[/b] and then launch the game normally. Large packs may take several minutes on first preparation.
+[*]Double-click [b]Launch Modded Game.cmd[/b]. It prepares your enabled mods and starts the game. Use Manage Mod Priorities.cmd when you want to edit load order, or Prepare Mods.cmd to prepare without launching. Large packs may take several minutes on first preparation.
 [/list]
 Keep your existing mod downloads, Mods/Config settings, native saves and companion saves when updating. Replace the loader files and bundled runtime together. Repeat preparation after adding, removing or replacing archives, or changing asset settings.
 
@@ -81,13 +82,13 @@ The importer supports the layouts used by Additional Levels 2.3.1, Additional Le
 Install the optional Character & Shop Extender ZIP, enable the relevant character packs and prepare again. Check the selected character variant and overlapping packs. Story unlocks and shop purchases still apply. Unsupported packs may need additional support.
 
 [b]I used the built-in extender in an older loader[/b]
-Install the separate extender ZIP to retain expanded character/shop and companion-save functionality with 1.8.0. Keep native saves and .tcs-characters companions together. Do not delete companions when backing up or transferring progress.
+Install the separate extender ZIP to retain expanded character/shop and companion-save functionality with 1.8.1. Keep native saves and .tcs-characters companions together. Do not delete companions when backing up or transferring progress.
 
 [b]The priority manager reports an import error[/b]
 Select the failed archive to read its error. Disable it and save, or replace its download. Launch game prepares the enabled selection. If reporting a problem, include the mod name/version, report.json named in the error, Mods/Assets/import.log and TCSModernOptions.log where available.
 
 [b]My changed mods are not appearing[/b]
-Close the game and run Prepare Mods.cmd, or use Manage Mod Priorities.cmd > Launch game. The loader reads the prepared files; starting the game directly does not prepare changed archives for you.
+Close the game and use Launch Modded Game.cmd, or Manage Mod Priorities.cmd > Launch game. The loader reads the prepared files; starting the game directly does not prepare changed archives for you.
 
 [b]The loader uses a lot of disk space[/b]
 Prepared assets include cached generations. With the game and manager closed, you can remove Mods/Assets to clear that cache, then prepare again. Keep Mods/Config, mod archives and saves.
@@ -99,9 +100,9 @@ No. Check each author's instructions and requirements. Overlapping shared files 
 [line]
 
 [b][size=4]Antivirus scan information[/size][/b]
-The new loader [b]d3d9.dll[/b] completed VirusTotal at [url=https://www.virustotal.com/gui/file/5e73a7fe09f4fb6138ff4a148fe46a32486dc5a9a583e2658821a45dfaa45d5d][b]0/70 detections[/b][/url]. The separate extender ZIP completed at [url=https://www.virustotal.com/gui/file/d590fe080063c6a825774b2a45bfc53ca4301836681af453d2c838a46e6a2e44][b]0/67[/b][/url]. These results were recorded on October 31, 2026.
+The new loader [b]d3d9.dll[/b] completed VirusTotal at [url=https://www.virustotal.com/gui/file/5e73a7fe09f4fb6138ff4a148fe46a32486dc5a9a583e2658821a45dfaa45d5d][b]0/70 detections[/b][/url]. The separate extender ZIP completed at [url=https://www.virustotal.com/gui/file/d590fe080063c6a825774b2a45bfc53ca4301836681af453d2c838a46e6a2e44][b]0/67[/b][/url]. These results were recorded on October 31, 2026. The loader DLL is byte-for-byte unchanged in 1.8.1; the helper window may still display 1.8.0.
 
-The final loader ZIP, helper EXE and separately submitted extender DLL scan results remain [b]unverified[/b]; further checks were stopped before their completed reports were verified. A DLL result does not establish a result for the entire download, and a ZIP result does not prove every member was scanned. [url=https://github.com/DevelopmentStatus/TCS-Mods/blob/main/docs/releases/TCSModLoader-v1.8.0.md]Exact hashes, scan evidence and validation details[/url].
+The 1.8.1 loader ZIP has not been submitted for scanning. The earlier helper EXE and separately submitted extender DLL scan results remain [b]unverified[/b]; further checks were stopped before their completed reports were verified. A DLL result does not establish a result for the entire download, and a ZIP result does not prove every member was scanned. [url=https://github.com/DevelopmentStatus/TCS-Mods/blob/main/docs/releases/TCSModLoader-v1.8.1.md]Exact hashes, scan evidence and validation details[/url].
 
 [line]
 

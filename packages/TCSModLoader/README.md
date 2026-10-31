@@ -1,4 +1,4 @@
-# TCS Mod Loader 1.8.0
+# TCS Mod Loader 1.8.1
 
 For the supported Windows Steam version of LEGO Star Wars: The Complete Saga.
 Provides the Direct3D 9 proxy, asset overlay, plugin host and native Mod Settings.
@@ -16,12 +16,15 @@ without it. The manager explains missing dependencies before launching.
    and the complete TCSAssetRuntime folder. Keep that runtime folder intact.
 3. Put desired plugin and supported asset ZIP/RAR files directly in Mods.
    Keep them compressed. Add the separate extender ZIP for character packs.
-4. Run Manage Mod Priorities.cmd and choose Launch game. Alternatively run
-   Prepare Mods.cmd, then launch normally. Repeat after changing archives or
-   asset settings, including settings changed in the game.
+4. Double-click Launch Modded Game.cmd. It prepares plugins and assets first,
+   then starts the game only if preparation succeeds. Use it after installing
+   this update and after changing archives or asset settings.
+   Manage Mod Priorities.cmd > Launch game is available for editing load order;
+   Prepare Mods.cmd prepares without starting the game.
 
 The loader reads prepared files. It does not launch importers or extract plugin
-DLLs during game startup. The helper loads its runtime from TCSAssetRuntime.
+DLLs during game startup. The helper loads its bundled Python libraries from TCSAssetRuntime. These
+libraries used to be embedded inside the helper EXE; keep the folder installed.
 Keep Mods/Config when updating to preserve settings.
 Built-in Saga Tweaks / ASI loading remains removed; install ASI mods separately
 following their authors' instructions. Compatibility is not established.
@@ -46,3 +49,6 @@ Full guide, download links and hash-specific scan results:
 https://github.com/DevelopmentStatus/TCS-Mods
 
 Required third-party license notices are in licenses/.
+
+This packaging update keeps the tested 1.8.0 DLL/helper binaries unchanged.
+The helper window may therefore still display version 1.8.0.
