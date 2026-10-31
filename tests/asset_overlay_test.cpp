@@ -7,12 +7,7 @@ static int lastMode,lastQuiet;
 static void* lastHeader;
 static bool failOverride=false;
 static bool variantRegistered=false;
-static bool startupMessageHandled=false;
-LRESULT CALLBACK startupTestWindow(HWND hwnd,UINT message,WPARAM w,LPARAM l) {
-    if(message==WM_APP+1){startupMessageHandled=true;return 0;}
-    return DefWindowProcW(hwnd,message,w,l);
-}
-DWORD WINAPI completeStartup(void* event) {Sleep(150);SetEvent(static_cast<HANDLE>(event));return 0;}
+static bool __cdecl extenderAvailable(const char* id) {return std::strcmp(id,"tcs.character-shop-extender")==0;}
 TCSModHandle __cdecl testRegisterMod(const TCSModInfo*) {return reinterpret_cast<TCSModHandle>(1);}
 BOOL __cdecl testRegisterSetting(TCSModHandle,const TCSSettingDescriptor* setting) {
     if(std::strcmp(setting->key,"Variant0")==0) {
@@ -31,35 +26,6 @@ int __cdecl nativeExists(const char*) {return 17;}
 long long __cdecl nativeSize(const char*) {return 12345;}
 int __cdecl nativeBuffer(const char* name,void*,int capacity) {lastName=name;return capacity;}
 int main() {
-    WNDCLASSW startupClass{};startupClass.lpfnWndProc=startupTestWindow;
-    startupClass.hInstance=GetModuleHandleW(nullptr);startupClass.lpszClassName=L"TCSStartupWaitTest";
-    CHECK(RegisterClassW(&startupClass));
-    HWND startupWindow=CreateWindowW(startupClass.lpszClassName,L"",0,0,0,0,0,HWND_MESSAGE,nullptr,startupClass.hInstance,nullptr);
-    CHECK(startupWindow);
-    HANDLE finished=CreateEventW(nullptr,TRUE,FALSE,nullptr);
-    HANDLE reviewing=CreateEventW(nullptr,TRUE,TRUE,nullptr);
-    PostMessageW(startupWindow,WM_APP+1,0,0);
-    HANDLE worker=CreateThread(nullptr,0,completeStartup,finished,0,nullptr);
-    CHECK(WaitForAssetStartup(finished,reviewing,30)==WAIT_OBJECT_0);
-    // Game messages stay queued until graphics initialization can finish.
-    CHECK(!startupMessageHandled);
-    MSG deferred{};CHECK(PeekMessageW(&deferred,startupWindow,WM_APP+1,WM_APP+1,PM_REMOVE));
-    DispatchMessageW(&deferred);CHECK(startupMessageHandled);
-    WaitForSingleObject(worker,1000);CloseHandle(worker);
-    startupMessageHandled=false;
-    ResetEvent(finished);
-    PostMessageW(startupWindow,WM_APP+1,0,0);
-    worker=CreateThread(nullptr,0,completeStartup,finished,0,nullptr);
-    CHECK(WaitForAssetStartup(finished,reviewing,30,startupWindow)==WAIT_OBJECT_0);
-    CHECK(startupMessageHandled);
-    WaitForSingleObject(worker,1000);CloseHandle(worker);
-    ResetEvent(finished);ResetEvent(reviewing);
-    CHECK(WaitForAssetStartup(finished,nullptr,30)==WAIT_TIMEOUT);
-    PostQuitMessage(0);
-    CHECK(WaitForAssetStartup(finished,nullptr,2000)==WAIT_ABANDONED);
-    MSG quit{};CHECK(PeekMessageW(&quit,nullptr,WM_QUIT,WM_QUIT,PM_REMOVE));
-    CloseHandle(finished);CloseHandle(reviewing);DestroyWindow(startupWindow);
-    UnregisterClassW(startupClass.lpszClassName,startupClass.hInstance);
     gamePrefix="C:\\GAME\\";
     openHook.bridge=reinterpret_cast<unsigned char*>(nativeOpen);
     existsHook.bridge=reinterpret_cast<unsigned char*>(nativeExists);
@@ -90,6 +56,14 @@ int main() {
     // The importer catalog exposes complete archive variants as native settings.
     auto catalog=std::filesystem::path(filename).wstring()+L".test-catalog.ini";
     CHECK(WritePrivateProfileStringW(L"Overlay",L"Count",L"1",catalog.c_str()));
+    CHECK(!catalogRequirementsMet(catalog,extenderAvailable)); // Old catalogs require preparation.
+    CHECK(WritePrivateProfileStringW(L"Overlay",L"Format",L"2",catalog.c_str()));
+    CHECK(catalogRequirementsMet(catalog,nullptr));
+    CHECK(WritePrivateProfileStringW(L"Overlay",L"RequiredPlugin",L"tcs.character-shop-extender",catalog.c_str()));
+    CHECK(!catalogRequirementsMet(catalog,nullptr));
+    CHECK(catalogRequirementsMet(catalog,extenderAvailable));
+    CHECK(WritePrivateProfileStringW(L"Overlay",L"RequiredPlugin",L"missing.plugin",catalog.c_str()));
+    CHECK(!catalogRequirementsMet(catalog,extenderAvailable));
     WritePrivateProfileStringW(L"Package0",L"Id",L"asset.test",catalog.c_str());
     WritePrivateProfileStringW(L"Package0",L"Name",L"Test",catalog.c_str());
     WritePrivateProfileStringW(L"Package0",L"VariantCount",L"1",catalog.c_str());

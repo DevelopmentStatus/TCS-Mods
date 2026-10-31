@@ -1,11 +1,13 @@
 param(
     [string]$BuildPath = (Join-Path $PSScriptRoot '..\build\Release'),
-    [string]$OutputPath = (Join-Path $PSScriptRoot '..\build\packages')
+    [string]$OutputPath = (Join-Path $PSScriptRoot '..\build\packages'),
+    [switch]$Development
 )
 $ErrorActionPreference = 'Stop'
 $repoPath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $components = @(
-    @{Name='TCSModLoader'; Version='1.7.4'; Dll='d3d9.dll'},
+    @{Name='TCSModLoader'; Version='1.8.0'; Dll='d3d9.dll'},
+    @{Name='TCSCharacterShopExtender'; Version='1.0.0'; Dll='TCSCharacterShopExtender.dll'},
     @{Name='TCSFirstPerson'; Version='0.4.0'; Dll='TCSFirstPerson.dll'},
     @{Name='TCSModernOptions'; Version='0.4.0'; Dll='TCSModernOptions.dll'},
     @{Name='TCSAllyDamage'; Version='1.1.1'; Dll='TCSAllyDamage.dll'},
@@ -18,7 +20,9 @@ foreach ($component in $components) {
     }
 }
 New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
-if (!(Test-Path -LiteralPath (Join-Path $BuildPath 'TCSAssetManager.exe'))) {
+$helperPath = Join-Path $BuildPath 'TCSAssetManager'
+if (!(Test-Path -LiteralPath (Join-Path $helperPath 'TCSAssetManager.exe')) -or
+    !(Test-Path -Path (Join-Path $helperPath 'TCSAssetRuntime\python3*.dll'))) {
     throw 'Missing TCSAssetManager.exe. Run scripts/Build-AssetManager.ps1 before packaging.'
 }
 # Unique staging folders avoid picking up files from previous packaging runs.
@@ -30,7 +34,7 @@ foreach ($component in $components) {
     Copy-Item -Path (Join-Path $repoPath "packages\$($component.Name)\*") -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $BuildPath $component.Dll) -Destination $stage
     if ($component.Name -eq 'TCSModLoader') {
-        Copy-Item -LiteralPath (Join-Path $BuildPath 'TCSAssetManager.exe') -Destination $stage
+        Copy-Item -Path (Join-Path $helperPath '*') -Destination $stage -Recurse
         # Public installers contain the short package README and required
         # licenses. Developer guides, research, release history and Nexus copy
         # stay in the repository rather than the user's game installation.
@@ -38,7 +42,8 @@ foreach ($component in $components) {
         New-Item -ItemType Directory -Path $mods | Out-Null
         Set-Content -LiteralPath (Join-Path $mods 'README.txt') -Value 'Place supported mod archives here and keep them compressed. See the loader README for installation and settings.' -Encoding UTF8
     }
-    $zip = Join-Path $OutputPath "$($component.Name)-v$($component.Version).zip"
+    $suffix = if ($Development) { '-development' } else { '' }
+    $zip = Join-Path $OutputPath "$($component.Name)-v$($component.Version)$suffix.zip"
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
     Write-Output $zip
 }

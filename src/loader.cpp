@@ -1,7 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include "zip_manifest.h"
-#include "startup_wait.h"
 #include <windows.h>
 #include <windowsx.h>
 #include <d3d9.h>
@@ -12,15 +11,15 @@
 #include <cstdio>
 #include <cmath>
 #include <climits>
+#include <cstring>
 #include <share.h>
 #include <mmsystem.h>
-#include <shellapi.h>
 #include "mod_api.h"
 #include "native_pause_menu.h"
 #include "pause_menu.h"
 #include "asset_overlay.h"
-#include "saga_compat.h"
-#include "shop_capacity.h"
+#include "archive_integrity.h"
+#include "supported_game.h"
 
 #pragma comment(lib,"winmm.lib")
 namespace {
@@ -47,8 +46,6 @@ bool captureKey=false;
 Plugin* selectedPlugin=nullptr;
 HRESULT lastResetResult=S_OK;
 bool nativeResetInProgress=false;
-bool displayMessageQueued=false;
-constexpr UINT displayApplyMessage=WM_APP+0x4c2;
 DWORD confirmDeadline{};
 int priorWidth=1280,priorHeight=720,priorMode=0,priorVsync=1,priorFpsCap=0;
 DWORD lastFrame{};
@@ -135,18 +132,12 @@ void applyPending() {
     // updates the viewport/dimensions, and rebuilds render targets and state.
     // Calling Reset alone leaves those resources alive and the device unusable.
     nativeResetInProgress=true;lastResetResult=E_FAIL;
-    if(saga_compat::videoReady()) {
-        saga_compat::publishVideo(windowMode,vsync);
-        saga_compat::video.window();
-    } else {
-        setWindowStyle();
-        reinterpret_cast<void(__thiscall*)(void*,int)>(0x6e3940)(renderer,0);
-    }
+    setWindowStyle();
+    reinterpret_cast<void(__thiscall*)(void*,int)>(0x6e3940)(renderer,0);
     nativeResetInProgress=false;
     if(SUCCEEDED(lastResetResult)){
         if(!videoPending)restoreVideoSettings();
         log("Display change completed through native renderer lifecycle");
-        saga_compat::persistVideo();
         confirmDeadline=GetTickCount()+15000;
     }else{
         log("Native display change failed; settings restored");
@@ -155,21 +146,13 @@ void applyPending() {
     }
 }
 
-// Saga's WindowApply performs a complete resource teardown/reset. Queue it
-// outside Present so neither renderer still has an active scene/compositor.
-void serviceDisplayChanges() {
-    if(!saga_compat::active){applyPending();return;}
-    if(pendingApply && !displayMessageQueued && gameWindow)
-        displayMessageQueued=PostMessageW(gameWindow,displayApplyMessage,reinterpret_cast<WPARAM>(&pendingApply),0)!=FALSE;
-}
+// Apply through the game renderer resource lifecycle.
+void serviceDisplayChanges() { applyPending(); }
 
 BOOL requestVideo(int w,int h,int mode,int sync) {
-    const bool sagaChanged=saga_compat::videoReady()&&
-        (*saga_compat::video.mode!=saga_compat::windowMode(std::clamp(mode,0,2))||*saga_compat::video.sync!=(sync?1:0));
-    if(saga_compat::active&&!saga_compat::publishVideo(std::clamp(mode,0,2),sync))return FALSE;
     if(revertingVideo){width=w;height=h;windowMode=mode;vsync=sync;activeWindowMode=windowMode;return TRUE;}
     if(!device){width=std::clamp(w,640,7680);height=std::clamp(h,480,4320);windowMode=std::clamp(mode,0,2);activeWindowMode=windowMode;vsync=sync?1:0;pendingApply=false;return TRUE;}
-    if(!sagaChanged&&device&&mode==windowMode&&!pendingApply&&presentation.BackBufferWidth==static_cast<UINT>(w)&&presentation.BackBufferHeight==static_cast<UINT>(h)&&
+    if(device&&mode==windowMode&&!pendingApply&&presentation.BackBufferWidth==static_cast<UINT>(w)&&presentation.BackBufferHeight==static_cast<UINT>(h)&&
         presentation.Windowed==(mode==2?FALSE:TRUE)&&presentation.PresentationInterval==(sync?D3DPRESENT_INTERVAL_ONE:D3DPRESENT_INTERVAL_IMMEDIATE))return TRUE;
     if(!videoPending){priorWidth=width;priorHeight=height;priorMode=windowMode;priorVsync=vsync;priorFpsCap=fpsCap;}
     width=std::clamp(w,640,7680);height=std::clamp(h,480,4320);windowMode=std::clamp(mode,0,2);activeWindowMode=windowMode;vsync=sync?1:0;
@@ -183,7 +166,7 @@ void restoreVideoSettings(){
     for(auto& p:plugins)if(p->id=="tcs.modernoptions")for(auto& s:p->settings){if(s.key=="Resolution")s.value.integer=ri;else if(s.key=="WindowMode")s.value.integer=windowMode;else if(s.key=="VSync")s.value.integer=vsync;else if(s.key=="FrameCap")s.value.integer=ci;else continue;saveSetting(&s);}
     revertingVideo=false;
 }
-void __cdecl requestFrameCap(int cap){fpsCap=std::clamp(cap,0,1000);saga_compat::publishCap(fpsCap);saga_compat::persistVideo();}
+void __cdecl requestFrameCap(int cap){fpsCap=std::clamp(cap,0,1000);}
 TCSModHost host{TCS_MOD_API_VERSION,sizeof(TCSModHost),apiRegisterMod,apiRegisterSetting,apiRegisterDevice,apiRegisterWindow,apiConfigPath,apiLog,requestVideo,requestFrameCap};
 
 std::vector<Setting*> visibleSettings() {
@@ -336,21 +319,9 @@ void updateModSettings(void* menu){
 }
 void applyStyle(D3DPRESENT_PARAMETERS* p) {
     if(!videoOptionsLoaded)return;
-    if(saga_compat::active) {
-        // Select the initial device mode; do not immediately reset a newly
-        // created device. Preserve Saga's already-computed backbuffer size.
-        p->Windowed=activeWindowMode==2?FALSE:TRUE;
-        p->BackBufferFormat=p->Windowed?D3DFMT_UNKNOWN:D3DFMT_X8R8G8B8;
-        p->FullScreen_RefreshRateInHz=0;
-        setWindowStyle();
-        return;
-    }
     setWindowStyle();applyWindow(p);
 }
 LRESULT CALLBACK GameProc(HWND h,UINT m,WPARAM w,LPARAM l) {
-    if(m==displayApplyMessage&&w==reinterpret_cast<WPARAM>(&pendingApply)) {
-        displayMessageQueued=false;applyPending();return 0;
-    }
     if(menuOpen&&captureKey&&m==WM_KEYDOWN){
         if(w==VK_ESCAPE)captureKey=false;
         else {auto list=rows();if(selectedRow>=0&&selectedRow<static_cast<int>(list.size())&&list[selectedRow].setting){list[selectedRow].setting->value.integer=static_cast<int>(w);saveSetting(list[selectedRow].setting);}captureKey=false;}
@@ -360,41 +331,84 @@ LRESULT CALLBACK GameProc(HWND h,UINT m,WPARAM w,LPARAM l) {
     return CallWindowProcW(reinterpret_cast<WNDPROC>(GetPropW(h,L"TCSOriginalProc")),h,m,w,l);
 }
 
-std::wstring psQuote(const std::wstring& s){std::wstring q=L"'";for(wchar_t c:s){q.push_back(c);if(c==L'\'')q.push_back(c);}q.push_back(L'\'');return q;}
-bool extractZip(const std::wstring& zip,const std::wstring& dest){
-    CreateDirectoryW((root+L"Mods\\Loaded").c_str(),nullptr);CreateDirectoryW(dest.c_str(),nullptr);
-    std::wstring command=L"powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command \"if(Test-Path -LiteralPath "+psQuote(dest)+L"){Remove-Item -LiteralPath "+psQuote(dest)+L" -Recurse -Force}; New-Item -ItemType Directory -Path "+psQuote(dest)+L" -Force | Out-Null; Expand-Archive -LiteralPath "+psQuote(zip)+L" -DestinationPath "+psQuote(dest)+L" -Force\"";
-    STARTUPINFOW si{};si.cb=sizeof(si);si.dwFlags=STARTF_USESHOWWINDOW;si.wShowWindow=SW_HIDE;PROCESS_INFORMATION pi{};
-    if(!CreateProcessW(nullptr,command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,root.c_str(),&si,&pi))return false;
-    DWORD wait=WaitForAssetStartup(pi.hProcess,nullptr,120000);DWORD code=1;
-    if(wait==WAIT_OBJECT_0)GetExitCodeProcess(pi.hProcess,&code);
-    else {TerminateProcess(pi.hProcess,1);WaitForSingleObject(pi.hProcess,5000);log("Plugin extractor stopped after timeout/interruption");}
-    CloseHandle(pi.hThread);CloseHandle(pi.hProcess);return wait==WAIT_OBJECT_0&&code==0;
+// Preparation is an explicit manager action, never a child process of the game.
+bool preparedPlugin(const std::wstring& zip,const std::wstring& cacheName,std::wstring& destination){
+    const auto cache=root+L"Mods\\Loaded\\"+cacheName;
+    auto ordinary=[](const std::wstring& path,bool directory){
+        DWORD a=GetFileAttributesW(path.c_str());
+        return a!=INVALID_FILE_ATTRIBUTES && !(a&FILE_ATTRIBUTE_REPARSE_POINT) &&
+            !!(a&FILE_ATTRIBUTE_DIRECTORY)==directory;
+    };
+    if(!ordinary(root+L"Mods",true)||!ordinary(root+L"Mods\\Loaded",true)||
+       !ordinary(cache,true)||!ordinary(cache+L"\\ready.ini",false)||!ordinary(zip,false))return false;
+    wchar_t generation[128]{};
+    GetPrivateProfileStringW(L"Plugin",L"Generation",L"",generation,128,(cache+L"\\ready.ini").c_str());
+    if(wcslen(generation)!=97 || generation[64]!=L'-')return false;
+    for(size_t i=0;i<97;++i)if(i!=64&&!((generation[i]>=L'0'&&generation[i]<=L'9')||(generation[i]>=L'a'&&generation[i]<=L'f')))return false;
+    // Refuse a stale prepared DLL after its source ZIP changes.
+    std::ifstream archive(std::filesystem::path(zip),std::ios::binary|std::ios::ate);
+    if(!archive)return false;
+    auto size=archive.tellg();if(size<=0||size>64*1024*1024)return false;
+    std::vector<unsigned char> data(static_cast<size_t>(size));archive.seekg(0);
+    if(!archive.read(reinterpret_cast<char*>(data.data()),data.size()))return false;
+    archive_integrity::Digest digest{};if(!archive_integrity::digest(data.data(),data.size(),digest))return false;
+    constexpr wchar_t hex[]=L"0123456789abcdef";
+    for(size_t i=0;i<digest.size();++i)if(generation[2*i]!=hex[digest[i]>>4]||generation[2*i+1]!=hex[digest[i]&15])return false;
+    destination=cache+L"\\"+generation;
+    return ordinary(destination,true)&&ordinary(destination+L"\\manifest.ini",false);
 }
 void loadZip(const std::wstring& zip,const std::wstring& filename){
     if(!ZipHasRootManifest(zip))return;
     std::wstring stem=filename.substr(0,filename.size()-4);for(auto& c:stem)if(!((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'_'||c==L'-'))c=L'_';
-    std::wstring dest=root+L"Mods\\Loaded\\"+stem; if(!extractZip(zip,dest)){log("Could not extract mod archive; skipping it");return;}
+    std::wstring dest; if(!preparedPlugin(zip,stem,dest)){log("Plugin is unprepared or changed. Run Prepare Mods.cmd with the game closed; skipping it.");return;}
     std::wstring manifest=dest+L"\\manifest.ini",idBuf[1];wchar_t id[256]{},entry[260]{};
     if(GetFileAttributesW(manifest.c_str())==INVALID_FILE_ATTRIBUTES)return; // Legacy assets are handled by the importer.
     GetPrivateProfileStringW(L"Mod",L"Id",L"",id,256,manifest.c_str());GetPrivateProfileStringW(L"Mod",L"Entry",L"",entry,260,manifest.c_str());
     if(!id[0]||!entry[0]||wcschr(entry,L'/')||wcschr(entry,L'\\')){log("Invalid mod manifest; skipping archive");return;}
-    if(saga_compat::suppressedPlugin(id)) {
-        log("Saga Tweaks owns startup skipping; Skip Splash plugin skipped for this run");return;
-    }
-    std::wstring dll=dest+L"\\"+entry;HMODULE m=LoadLibraryW(dll.c_str());if(!m){log("Mod entry DLL failed to load; skipping archive");return;}
+    const std::wstring entryName=entry;
+    if(entryName.size()<5||_wcsicmp(entryName.c_str()+entryName.size()-4,L".dll"))return;
+    for(size_t i=0;i<entryName.size()-4;++i){const auto c=entryName[i];if(!((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'_'||c==L'-'))return;}
+    std::wstring dll=dest+L"\\"+entry;
+    DWORD attributes=GetFileAttributesW(dll.c_str());
+    if(attributes==INVALID_FILE_ATTRIBUTES||(attributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return;
+    HMODULE m=LoadLibraryExW(dll.c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);if(!m){log("Mod entry DLL failed to load; skipping archive");return;}
     auto init=reinterpret_cast<TCSModInitialize>(GetProcAddress(m,"TCSMod_Initialize"));if(!init)init=reinterpret_cast<TCSModInitialize>(GetProcAddress(m,"_TCSMod_Initialize"));
     if(!init){FreeLibrary(m);log("Mod has no supported initialization export");return;}
     size_t before=plugins.size();TCSModHandle h=nullptr;loadingPackageFolder=dest;BOOL initialized=init(&host,&h);loadingPackageFolder.clear();if(!initialized||!h||plugins.size()!=before+1||toWide(plugins[before]->id.c_str())!=id){plugins.resize(before);FreeLibrary(m);log("Mod initialization or manifest ID validation failed");return;}
     plugins[before]->module=m;plugins[before]->shutdown=reinterpret_cast<TCSModShutdown>(GetProcAddress(m,"TCSMod_Shutdown"));if(!plugins[before]->shutdown)plugins[before]->shutdown=reinterpret_cast<TCSModShutdown>(GetProcAddress(m,"_TCSMod_Shutdown"));
 }
+std::wstring pluginCacheName(const std::wstring& filename) {
+    auto stem=filename.substr(0,filename.size()-4);
+    for(auto& c:stem)if(!((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'_'||c==L'-'))c=L'_';
+    return stem;
+}
+bool pluginAvailable(const char* id) {
+    return id&&std::any_of(plugins.begin(),plugins.end(),[&](const auto& p){return p->id==id&&p->module;});
+}
 void loadPlugins() {
+    struct Archive {std::wstring path,filename;int priority;};
+    std::vector<Archive> archives;
     CreateDirectoryW((root+L"Mods").c_str(),nullptr);WIN32_FIND_DATAW fd{};HANDLE find=FindFirstFileW((root+L"Mods\\*.zip").c_str(),&fd);if(find==INVALID_HANDLE_VALUE)return;
-    do {if(!(fd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))loadZip(root+L"Mods\\"+fd.cFileName,fd.cFileName);}while(FindNextFileW(find,&fd));FindClose(find);
+    do {
+        if(fd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)continue;
+        auto path=root+L"Mods\\"+fd.cFileName;
+        if(!ZipHasRootManifest(path))continue;
+        std::wstring prepared;
+        if(!preparedPlugin(path,pluginCacheName(fd.cFileName),prepared)){
+            log("Plugin is unprepared or changed. Run Prepare Mods.cmd with the game closed; skipping it.");continue;
+        }
+        auto manifest=prepared+L"\\manifest.ini";
+        int priority=static_cast<int>(GetPrivateProfileIntW(L"Mod",L"LoadPriority",0,manifest.c_str()));
+        archives.push_back({path,fd.cFileName,std::clamp(priority,-1000,1000)});
+    }while(FindNextFileW(find,&fd));FindClose(find);
+    std::sort(archives.begin(),archives.end(),[](const auto& a,const auto& b){
+        return a.priority!=b.priority?a.priority<b.priority:_wcsicmp(a.filename.c_str(),b.filename.c_str())<0;
+    });
+    for(const auto& archive:archives)loadZip(archive.path,archive.filename);
 }
 HRESULT STDMETHODCALLTYPE hookReset(IDirect3DDevice9* dev,D3DPRESENT_PARAMETERS* p){
     notifyReset(true);
-    if(videoOptionsLoaded&&!saga_compat::active)applyWindow(p);
+    if(videoOptionsLoaded)applyWindow(p);
     HRESULT hr=realReset(dev,p);
     if(FAILED(hr)&&nativeResetInProgress){
         log("Requested Reset failed; recovering previous display mode before resources are rebuilt");
@@ -406,34 +420,86 @@ HRESULT STDMETHODCALLTYPE hookReset(IDirect3DDevice9* dev,D3DPRESENT_PARAMETERS*
     if(SUCCEEDED(hr))presentation=*p;
     notifyReset(false);return hr;
 }
-HRESULT STDMETHODCALLTYPE hookPresent(IDirect3DDevice9* dev,const RECT* a,const RECT* b,HWND c,const RGNDATA* e){MaintainNativePauseMenu();if(videoPending&& !pendingApply && static_cast<LONG>(GetTickCount()-confirmDeadline)>=0){width=priorWidth;height=priorHeight;windowMode=priorMode;activeWindowMode=windowMode;vsync=priorVsync;fpsCap=priorFpsCap;videoPending=false;pendingApply=true;restoreVideoSettings();writeOptions();}serviceDisplayChanges();if(fpsCap>0&&!saga_compat::active){DWORD now=timeGetTime();DWORD frame=1000/static_cast<DWORD>(fpsCap);if(lastFrame&&now-lastFrame<frame)Sleep(frame-(now-lastFrame));lastFrame=timeGetTime();}static bool observed=false;if(!observed){observed=true;log("D3D9 Present hook active");}return realPresent(dev,a,b,c,e);}
+HRESULT STDMETHODCALLTYPE hookPresent(IDirect3DDevice9* dev,const RECT* a,const RECT* b,HWND c,const RGNDATA* e){MaintainNativePauseMenu();if(videoPending&& !pendingApply && static_cast<LONG>(GetTickCount()-confirmDeadline)>=0){width=priorWidth;height=priorHeight;windowMode=priorMode;activeWindowMode=windowMode;vsync=priorVsync;fpsCap=priorFpsCap;videoPending=false;pendingApply=true;restoreVideoSettings();writeOptions();}serviceDisplayChanges();if(fpsCap>0){DWORD now=timeGetTime();DWORD frame=1000/static_cast<DWORD>(fpsCap);if(lastFrame&&now-lastFrame<frame)Sleep(frame-(now-lastFrame));lastFrame=timeGetTime();}static bool observed=false;if(!observed){observed=true;log("D3D9 Present hook active");}return realPresent(dev,a,b,c,e);}
 HRESULT STDMETHODCALLTYPE hookEndScene(IDirect3DDevice9* dev){for(auto& p:plugins)if(p->endScene)p->endScene(dev,p->context);return realEndScene(dev);}
 
-void deviceCreated(HWND w,IDirect3DDevice9* d) { gameWindow=w;device=d;InstallNativePauseMenu(openModSettings,modSettingsOpen,drawModSettings,updateModSettings,log);if(!hookedDevice){auto vt=*reinterpret_cast<void***>(d);DWORD old;VirtualProtect(vt+16,sizeof(void*)*27,PAGE_READWRITE,&old);realReset=reinterpret_cast<ResetFn>(vt[16]);realPresent=reinterpret_cast<PresentFn>(vt[17]);realEndScene=reinterpret_cast<EndSceneFn>(vt[42]);
+void deviceCreated(HWND w,IDirect3DDevice9* d) {
+    gameWindow=w;device=d;
+    if(!hookedDevice){
+        auto vt=*reinterpret_cast<void***>(d);DWORD old{};
+        if(!VirtualProtect(vt+16,sizeof(void*)*27,PAGE_READWRITE,&old)){
+            log("D3D9 device hook: vtable could not be made writable");return;
+        }
+        realReset=reinterpret_cast<ResetFn>(vt[16]);
+        realPresent=reinterpret_cast<PresentFn>(vt[17]);
+        realEndScene=reinterpret_cast<EndSceneFn>(vt[42]);
         vt[16]=reinterpret_cast<void*>(hookReset);
         vt[17]=reinterpret_cast<void*>(hookPresent);
         vt[42]=reinterpret_cast<void*>(hookEndScene);
-VirtualProtect(vt+16,sizeof(void*)*27,old,&old);hookedDevice=d;}
+        DWORD unused{};
+        if(!VirtualProtect(vt+16,sizeof(void*)*27,old,&unused))log("D3D9 device hook: could not restore vtable protection");
+        hookedDevice=d;
+    }
+    InstallNativePauseMenu(openModSettings,modSettingsOpen,drawModSettings,updateModSettings,log);
     for(auto& p:plugins)if(p->created)p->created(w,d,p->context);
-    SetPropW(w,L"TCSOriginalProc",reinterpret_cast<HANDLE>(SetWindowLongPtrW(w,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(GameProc))));
+    // Preserve the actual previous procedure when the same HWND is reused.
+    if(!GetPropW(w,L"TCSOriginalProc")) {
+        SetLastError(0);
+        auto previous=SetWindowLongPtrW(w,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(GameProc));
+        if(!previous && GetLastError())log("D3D9 window hook: could not subclass game window");
+        else if(!SetPropW(w,L"TCSOriginalProc",reinterpret_cast<HANDLE>(previous))) {
+            SetWindowLongPtrW(w,GWLP_WNDPROC,previous);
+            log("D3D9 window hook: previous procedure could not be retained");
+        }
+    }
 }
 HRESULT STDMETHODCALLTYPE hookCreateDevice(IDirect3D9* self,UINT adapter,D3DDEVTYPE type,HWND window,DWORD flags,D3DPRESENT_PARAMETERS* p,IDirect3DDevice9** out) {
     log("Creating game graphics device");
     gameWindow=window;D3DPRESENT_PARAMETERS original=*p;applyStyle(p);auto hr=realCreateDevice(self,adapter,type,window,flags,p,out);
-    if(FAILED(hr)){*p=original;if(videoOptionsLoaded&&!saga_compat::active){width=1280;height=720;windowMode=0;activeWindowMode=0;vsync=1;fpsCap=0;setWindowStyle();applyWindow(p);writeOptions();}log("Configured device creation failed; retrying the game's original display parameters");hr=realCreateDevice(self,adapter,type,window,flags,p,out);}
+    if(FAILED(hr)){*p=original;if(videoOptionsLoaded){width=1280;height=720;windowMode=0;activeWindowMode=0;vsync=1;fpsCap=0;setWindowStyle();applyWindow(p);writeOptions();}log("Configured device creation failed; retrying the game's original display parameters");hr=realCreateDevice(self,adapter,type,window,flags,p,out);}
     if(SUCCEEDED(hr)&&out&&*out){presentation=*p;deviceCreated(window,*out);log("Game graphics device ready");}return hr;
 }
 void loadCoreConfig(){optionsConfig=iniPath(L"TCSModLoader.ini");}
 }
 
 extern "C" IDirect3D9* WINAPI ProxyCreate9(UINT version) {
+    if(!realD3D){
+        wchar_t path[MAX_PATH]{};
+        const auto length=GetSystemDirectoryW(path,MAX_PATH);
+        if(!length || length>=MAX_PATH || wcscat_s(path,L"\\d3d9.dll"))return nullptr;
+        realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;
+    }
+    auto fn=reinterpret_cast<IDirect3D9*(WINAPI*)(UINT)>(GetProcAddress(realD3D,"Direct3DCreate9"));
+    if(!fn)return nullptr;
+    // Outside the supported game this DLL only forwards the real D3D call.
+    if(!SupportedGameHost())return fn(version);
     static bool initialized=false;
-    if(!realD3D){wchar_t path[MAX_PATH];GetSystemDirectoryW(path,MAX_PATH);wcscat_s(path,L"\\d3d9.dll");realD3D=LoadLibraryW(path);if(!realD3D)return nullptr;timeBeginPeriod(1);logFile=_fsopen("TCSModernOptions.log","w",_SH_DENYNO);wchar_t exe[MAX_PATH];GetModuleFileNameW(nullptr,exe,MAX_PATH);wchar_t* slash=wcsrchr(exe,L'\\');if(slash){slash[1]=0;root=exe;}if(!initialized){initialized=true;loadCoreConfig();if(PrepareAssetOverlay(root,host,log))saga_compat::loadPrepared(root,log);ConfigureSagaPauseMenu(saga_compat::pauseUpdate,saga_compat::pauseRow);shop_capacity::install(log);loadPlugins();log("TCS Modern Options loader initialized");}}
-    log("Creating native Direct3D9 interface");
-    auto fn=reinterpret_cast<IDirect3D9*(WINAPI*)(UINT)>(GetProcAddress(realD3D,"Direct3DCreate9"));auto d=fn(version);
-    log(d?"Native Direct3D9 interface ready":"Native Direct3D9 interface failed");
-    // The loader owns Mod Settings, including when no optional mods are installed.
-    if(d){auto vt=*reinterpret_cast<void***>(d);DWORD old;VirtualProtect(vt+16,sizeof(void*),PAGE_READWRITE,&old);if(vt[16]!=reinterpret_cast<void*>(hookCreateDevice)){realCreateDevice=reinterpret_cast<CreateDeviceFn>(vt[16]);vt[16]=reinterpret_cast<void*>(hookCreateDevice);}VirtualProtect(vt+16,sizeof(void*),old,&old);}return d;
+    if(!initialized){
+        initialized=true;
+        wchar_t exe[MAX_PATH]{};
+        const auto length=GetModuleFileNameW(nullptr,exe,MAX_PATH);
+        if(!length || length>=MAX_PATH)return fn(version);
+        auto slash=wcsrchr(exe,L'\\');if(!slash)return fn(version);
+        slash[1]=0;root=exe;
+        timeBeginPeriod(1);
+        logFile=_wfsopen((root+L"TCSModernOptions.log").c_str(),L"w",_SH_DENYNO);
+        loadCoreConfig();loadPlugins();PrepareAssetOverlay(root,host,log,pluginAvailable);
+        log("TCS Modern Options loader initialized");
+    }
+    auto d=fn(version);
+    if(d){
+        auto vt=*reinterpret_cast<void***>(d);DWORD old{};
+        if(!VirtualProtect(vt+16,sizeof(void*),PAGE_READWRITE,&old)){
+            log("D3D9 interface hook: vtable could not be made writable");return d;
+        }
+        if(vt[16]!=reinterpret_cast<void*>(hookCreateDevice)){
+            realCreateDevice=reinterpret_cast<CreateDeviceFn>(vt[16]);
+            vt[16]=reinterpret_cast<void*>(hookCreateDevice);
+        }
+        DWORD unused{};
+        if(!VirtualProtect(vt+16,sizeof(void*),old,&unused))log("D3D9 interface hook: could not restore vtable protection");
+    }
+    return d;
 }
 extern "C" int WINAPI ProxyBeginEvent(D3DCOLOR c,LPCWSTR text){auto fn=realD3D?GetProcAddress(realD3D,"D3DPERF_BeginEvent"):nullptr;return fn?reinterpret_cast<int(WINAPI*)(D3DCOLOR,LPCWSTR)>(fn)(c,text):-1;}
 extern "C" int WINAPI ProxyEndEvent(){auto fn=realD3D?GetProcAddress(realD3D,"D3DPERF_EndEvent"):nullptr;return fn?reinterpret_cast<int(WINAPI*)()>(fn)():-1;}

@@ -21,9 +21,7 @@ void (*updateSettings)(void*){};
 void (*writeLog)(const char*){};
 bool installed{};
 bool firstDraw{}, firstUpdate{};
-UpdateMenu sagaUpdate{};
 int modSettingsRow=tcs::modSettingsRow;
-int* sagaTweaksRow{};
 UpdateMenu nativeDraw=reinterpret_cast<UpdateMenu>(0x495b50);
 UpdateMenu nativeUpdate=reinterpret_cast<UpdateMenu>(updateAddress);
 DrawEntry nativeDrawEntry=reinterpret_cast<DrawEntry>(drawEntryAddress);
@@ -56,14 +54,10 @@ void __cdecl updatePause(void* menu) {
         openSettings(menu);
         return;
     }
-    // Translate both cursor representations and Saga's drawn Tweaks row into
-    // the original menu's coordinate system for the duration of dispatch.
-    const int oldTweaks=sagaTweaksRow?*sagaTweaksRow:0;
-    if(sagaTweaksRow)*sagaTweaksRow=tcs::originalPauseRow(oldTweaks);
+    // Translate both cursor representations for native menu dispatch.
     field<int>(menu, 0x34)=tcs::originalPauseRow(selected);
     field<short>(menu,0x0a)=static_cast<short>(tcs::originalPauseRow(selected));
-    if(sagaUpdate)sagaUpdate(menu);else nativeUpdate(menu);
-    if(sagaTweaksRow)*sagaTweaksRow=oldTweaks;
+    nativeUpdate(menu);
     const int returned=field<int>(menu,0x34);
     const int restored=returned==tcs::originalPauseRow(selected)?selected:(returned>=modSettingsRow?returned+1:returned);
     field<int>(menu,0x34)=restored;field<short>(menu,0x0a)=static_cast<short>(restored);
@@ -79,15 +73,12 @@ bool writableCopy(uintptr_t address, const void* value, size_t size) {
 }
 }
 
-void ConfigureSagaPauseMenu(void (__cdecl *update)(void*),int* tweaksRow) {
-    sagaUpdate=update;sagaTweaksRow=tweaksRow;modSettingsRow=tcs::modSettingsRow;
-}
 int NativeModSettingsRow() {return modSettingsRow;}
 
 template<class Write> bool RepairPauseSlots(uintptr_t draw,uintptr_t update,Write write) {
     const auto wrapperDraw=reinterpret_cast<uintptr_t>(drawPause),wrapperUpdate=reinterpret_cast<uintptr_t>(updatePause);
     if((draw!=0x495b50 && draw!=wrapperDraw) ||
-       (update!=updateAddress && update!=wrapperUpdate && (!sagaUpdate||update!=reinterpret_cast<uintptr_t>(sagaUpdate))))return false;
+       (update!=updateAddress && update!=wrapperUpdate))return false;
     if(draw!=wrapperDraw)write(runtimeDrawSlot,wrapperDraw);
     if(update!=wrapperUpdate)write(runtimeDrawSlot+4,wrapperUpdate);
     return true;
@@ -138,6 +129,6 @@ bool InstallNativePauseMenu(void (*open)(void*), bool (*isOpen)(), void (*draw)(
         return false;
     }
     installed=true;
-    logger("Pause hook installed: inline Mod Settings; cursor and Saga Tweaks dispatch remapped");
+    logger("Pause hook installed: inline Mod Settings; native cursor dispatch remapped");
     return true;
 }

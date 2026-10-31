@@ -4,30 +4,49 @@ Native Windows mods and a shared mod loader for **LEGO Star Wars: The Complete S
 
 Targets the validated **32-bit Windows Steam PC build**. These are native C++ DLL plugins for this game. Other editions, executable revisions, and platforms have not been validated.
 
+## Loader and optional character extender
+
+Loader 1.8.0 separates the character/shop expansion and companion-save code into
+**[Character & Shop Extender 1.0.0](dist/TCSCharacterShopExtender-v1.0.0.zip)**.
+The loader ZIP does not contain that plugin. Add its compressed ZIP to `Mods`
+when using character packs that need expanded tables, private names or portrait
+support. Existing companion saves remain compatible; keep them beside native saves.
+
+With the game closed, use `Manage Mod Priorities.cmd` and **Launch game**, or run
+`Prepare Mods.cmd` before launching normally. Repeat after changing archives or
+asset settings. Keep `TCSAssetRuntime` beside `TCSAssetManager.exe`.
+The new loader DLL scanned at **0/70**; the separate extender ZIP at **0/67**.
+The final loader ZIP/helper scan status remains unverified after checks stopped
+at the user's request. See [1.8.0 release notes and separate scan results](docs/releases/TCSModLoader-v1.8.0.md).
+
 ## Downloads and mod catalog
 
 Download the ZIPs below using GitHub's **Download raw file** button. Install the loader first, then choose any combination of plugins.
 
-[Loader 1.7.4 package](dist/TCSModLoader-v1.7.4.zip): fixes incorrect names across character packs, includes the large-roster portrait fixes, and supports up to 1,000 registered characters and shop entries. Includes save-load, missing-roster, window-mode and Saga Tweaks compatibility fixes. See the [release notes](docs/releases/TCSModLoader-v1.7.4.md).
+[Loader 1.8.0 package](dist/TCSModLoader-v1.8.0.zip) provides asset importing,
+plugin loading and Mod Settings. Install the optional extender separately for
+up to 1,000 registered characters/shop entries and compatible companion saves.
+Saga Tweaks / ASI integration remains removed.
 
 | Component | Included build | What it does | Main source |
 | --- | --- | --- | --- |
-| [TCS Mod Loader](dist/TCSModLoader-v1.7.4.zip) | 1.7.4 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [TCS Mod Loader](dist/TCSModLoader-v1.8.0.zip) | 1.8.0 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [Character & Shop Extender](dist/TCSCharacterShopExtender-v1.0.0.zip) | 1.0.0 | Optional expanded character/shop tables, text/portrait capacity and companion saves | [character_shop_extender.cpp](src/character_shop_extender.cpp), [shop_capacity.h](src/shop_capacity.h) |
 | [TCS First Person](dist/TCSFirstPerson-v0.4.0.zip) | 0.4.0 | First-person camera, animated head camera style, orbit camera, mouse aiming, visible body, and PC controls | [mod.cpp](src/mod.cpp) |
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
 | [TCS Ally Damage](dist/TCSAllyDamage-v1.1.1.zip) | 1.1.1 | Damage eligibility and active combat behavior for AI party companions | [ally_damage.cpp](src/ally_damage.cpp) |
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
 | [Shop Ownership Fix](dist/TCSShopOwnershipFix-v1.0.0.zip) | 1.0.0 | Corrects false unpurchased shop entries for characters already owned, without changing studs or saves | [shop_ownership.cpp](src/shop_ownership.cpp) |
 
-The loader 1.7.4 ZIP is built from the updated source in this repository. The plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
+The loader 1.8.0 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
 ## Installation
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.7.4.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.8.0.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe`, plus the complete `TCSAssetRuntime` folder, must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
-5. Start the game. Open **Pause > Mod Settings**, directly below **Effects Settings**, then select a mod to configure it.
+5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Run **Manage Mod Priorities.cmd > Launch game**, or run **Prepare Mods.cmd** before launching normally. Open **Pause > Mod Settings** to configure mods.
 
 Example installation:
 
@@ -43,16 +62,16 @@ LEGO Star Wars Saga/
     ├── TCSAllyDamage-v1.1.1.zip
     ├── TCSSkipSplash-v1.0.0.zip
     ├── Config/                # Created by the loader
-    └── Loaded/                # Created by the loader
+    └── Loaded/                # Prepared by the manager
 ```
 
 Asset mods: drop supported ZIP/RAR downloads directly into `Mods`. Keep them compressed. The loader imports level/world packages and character assets, including loose layouts inferred from registries and neighboring files. Legacy character packs can provide roster/shop/name snippets in TXT documentation. See [asset installation and conflict rules](docs/ASSET_IMPORT.md).
 
-When overlapping enabled mods have equal priorities, the loader automatically runs Auto-sort, saves the order and continues startup. Distinct saved priorities preserve your custom order. Import errors or a failed save still open the editor. Manage Mod Priorities.cmd opens it manually, and the Auto-sort button remains available. Python/Tk is bundled.
+When preparing overlapping enabled mods with equal priorities, the manager automatically runs Auto-sort and saves the order. Distinct saved priorities preserve your custom order. Import errors or a failed save still open the editor. Manage Mod Priorities.cmd opens it manually, and the Auto-sort button remains available. Python/Tk is bundled.
 
-Modern Overhaul and both Additional Levels variants use the general importer. Enable only one Additional Levels variant, and obtain Modern Overhaul separately for its variant. Removing an archive and restarting restores the underlying asset unless another enabled mod replaces it. No QuickBMS or separate Python installation is needed.
+Modern Overhaul and both Additional Levels variants use the general importer. Enable only one Additional Levels variant, and obtain Modern Overhaul separately for its variant. Removing an archive and preparing again restores the underlying asset unless another enabled mod replaces it. No QuickBMS or separate Python installation is needed.
 
-Only install one ZIP per plugin ID. Move older versions out of the top level of `Mods` before upgrading. Keep `Mods/Config` to retain settings. The loader refreshes extracted packages under `Mods/Loaded` at startup.
+Only install one ZIP per plugin ID. Move older versions out of the top level of `Mods` before upgrading. Keep `Mods/Config` to retain settings. The manager refreshes prepared packages under `Mods/Loaded` before launch; the loader reads those prepared files.
 
 The optional helper scripts [Install-FirstPersonPlugin.ps1](Install-FirstPersonPlugin.ps1) and [Install-AllyDamagePlugin.ps1](Install-AllyDamagePlugin.ps1) install the included plugin builds and back up matching older ZIPs. Supply your own game folder:
 

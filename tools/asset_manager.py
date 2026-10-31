@@ -1,4 +1,4 @@
-"""Build an isolated, enabled-mod asset overlay. Called by the native loader."""
+"""Prepare mod archives before starting the game; the loader reads prepared files."""
 import argparse
 import configparser
 import hashlib
@@ -16,7 +16,6 @@ from tcs_dat import Dat
 from asset_conflicts import overlaps
 from asset_version import VERSION
 from portrait_assets import prepare as prepare_portraits
-import native_asi
 import character_names
 
 
@@ -72,6 +71,19 @@ def short_label(value, limit):
     return value.encode('utf-8')[:limit].decode('utf-8', errors='ignore')
 
 
+EXTENDER_ID = 'tcs.character-shop-extender'
+
+
+def required_plugins(active, names, portraits):
+    """Character tables/private labels need the optional extender, unlike skins."""
+    active = Path(active)
+    character_tables = any((active / path).is_file() for path in
+                           ('CHARS/CHARS.TXT', 'CHARS/COLLECTION.TXT'))
+    needs_extender = (character_tables or names.get('count', 0)
+                      or portraits.get('preloads') or portraits.get('fallbacks'))
+    return [EXTENDER_ID] if needs_extender else []
+
+
 class AssetImportError(ValueError):
     def __init__(self, report_path, errors):
         details = '\n'.join(f"{e['archive']}: {e['error']}" for e in errors)
@@ -79,6 +91,12 @@ class AssetImportError(ValueError):
 
 
 def inspect_package(game, path, identity):
+    archive = Archive(path)
+    try:
+        if any(name.lower().endswith('.asi') for name in archive.members()):
+            raise ValueError('ASI loading is not supported. Remove this archive from Mods and install it separately using its author instructions.')
+    finally:
+        archive.close()
     report = inspect(path, game=game, selections=lambda key: setting(game, identity, key, 0))
     if report['unresolved']:
         raise ValueError('Cannot determine unique game paths for: ' + ', '.join(report['unresolved'][:12]))
@@ -106,7 +124,7 @@ def scan_packages(game):
             if report['enabled']:
                 if path.suffix.lower() == '.zip' and is_plugin(path):
                     continue
-                report.update(native_asi.inspect(path) or inspect_package(game, path, identity))
+                report.update(inspect_package(game, path, identity))
         except Exception as error:
             report.update(error=str(error), status='failed', files=[], variants=[])
         packages.append(report)
@@ -203,7 +221,7 @@ def build(game, review=None):
     active = generation / 'Active'
     active.mkdir()
     packages = scan_packages(game)
-    errors, conflicts, owners, native_plugins = [], [], {}, []
+    errors, conflicts, owners = [], [], {}
     dat = None
     catalog = configparser.ConfigParser(interpolation=None)
     for number, report in enumerate(packages):
@@ -242,10 +260,6 @@ def build(game, review=None):
             continue
         stage_dir = generation / report['id']
         try:
-            if report.get('profile') == 'asi':
-                native_plugins.extend(native_asi.stage(report, generation))
-                report['status'] = 'enabled'
-                continue
             stage(report, stage_dir)
             assets = {i['target']: stage_dir / ('assets' if i['kind'] == 'asset' else 'review') / i['target']
                       for i in report['files']}
@@ -326,20 +340,15 @@ def build(game, review=None):
             conflicts=conflicts, errors=errors), indent=2), encoding='utf-8')
         raise AssetImportError(generation / 'report.json', errors) from error
     portraits = prepare_portraits(active, packages, generation)
-    # As with asset files, the last enabled provider wins duplicate ASI names.
-    selected_native = {entry['name'].casefold(): entry for entry in native_plugins}
-    native_plugins = list(selected_native.values())
+    dependencies = required_plugins(active, names, portraits)
     result = dict(complete=True, packages=packages, conflicts=conflicts, errors=errors, portraits=portraits,
                   character_names=names,
-                  native_plugins=native_plugins,
+                  required_plugins=dependencies,
                   active=str(active), fingerprint=signature, overlaps=overlaps(packages),
                   priority='Higher wins; filename breaks ties')
     (generation / 'report.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     catalog['Overlay'] = dict(Path=str(active), Count=str(len(packages)), Report=str(generation / 'report.json'),
-                              NativeCount=str(len(native_plugins)))
-    for index, entry in enumerate(native_plugins):
-        catalog['NativePlugin' + str(index)] = dict(Source=entry['source'], Name=entry['name'],
-                                                   Profile=entry['profile'])
+                              Format='2', RequiredPlugin=dependencies[0] if dependencies else '')
     catalog['Portraits'] = dict(Count=str(len(portraits['preloads'])),
                               FallbackCount=str(len(portraits['fallbacks'])))
     for index, icon in enumerate(portraits['preloads']):
@@ -363,6 +372,24 @@ def launch_game(game, signature):
     return subprocess.Popen([str(executable)], cwd=str(game), env=environment)
 
 
+def prepare_game(game, review=None):
+    from plugin_cache import prepare_all
+    plugins = prepare_all(game)
+    result = build(game, review=review)
+    result['prepared_plugins'] = [str(path) for path in plugins]
+    available = set()
+    for folder in plugins:
+        manifest = configparser.ConfigParser(interpolation=None)
+        manifest.read(folder / 'manifest.ini', encoding='utf-8-sig')
+        available.add(manifest.get('Mod', 'Id'))
+    missing = set(result.get('required_plugins', [])) - available
+    if missing:
+        raise ValueError('These character assets require the separate Character & Shop Extender. '
+                         'Install TCSCharacterShopExtender-v1.0.0.zip in Mods and prepare again. '
+                         'No game was launched and existing saves were not changed.')
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--game', type=Path)
@@ -370,6 +397,8 @@ def main():
     parser.add_argument('--startup-ui', action='store_true', help='Review asset overlaps before game startup')
     parser.add_argument('--manage', action='store_true', help='Always open the priority editor')
     parser.add_argument('--ui-event', help=argparse.SUPPRESS)
+    parser.add_argument('--extract-plugin', type=Path, help=argparse.SUPPRESS)
+    parser.add_argument('--plugin-cache', help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
         if args.check_gui:
@@ -379,6 +408,10 @@ def main():
             return 0
         if args.game is None:
             parser.error('--game is required unless --check-gui is used')
+        if args.extract_plugin is not None:
+            from plugin_cache import prepare
+            print(prepare(args.game, args.extract_plugin, args.plugin_cache or ''))
+            return 0
         callback = None
         launch_requested = False
         def request_launch():
@@ -397,9 +430,9 @@ def main():
             # Save/Close edits settings only; Launch prepares the final overlay.
             packages = scan_packages(args.game)
             callback(args.game.resolve(), packages, overlaps(packages))
-            result = (build(args.game) if launch_requested else dict(managed=True, packages=packages))
+            result = (prepare_game(args.game) if launch_requested else dict(managed=True, packages=packages))
         else:
-            result = build(args.game, review=callback)
+            result = prepare_game(args.game, review=callback)
         if launch_requested and not args.startup_ui:
             result['launched_pid'] = launch_game(args.game, result['fingerprint']).pid
         print(json.dumps(result, indent=2))

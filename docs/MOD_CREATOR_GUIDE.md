@@ -8,7 +8,7 @@ This guide explains how to make a native mod package that the TCS Mod Loader can
 - Export TCSMod_Initialize with the TCS_MOD_EXPORT macro.
 - Register a stable plugin ID, name and version through the host API.
 - Put manifest.ini and the entry DLL at the root of one ZIP file.
-- Place the ZIP directly in <game folder>\Mods and restart the game.
+- Place the ZIP directly in <game folder>\Mods, run Prepare Mods.cmd, then start the game.
 
 ## 1. Include the API header
 Use src\mod_api.h from this project. The plugin interface uses the Windows C ABI and __cdecl callbacks. Compile your plugin for x86 / Win32, not x64. The header declares TCS_MOD_API_VERSION as 1. At startup, check both apiVersion and structSize before calling host functions. Do not assume that a different API version has the same struct layout.
@@ -129,7 +129,25 @@ Check the archive by opening it: manifest.ini and ExamplePlugin.dll should appea
 4. Pause the game, select Mod Settings directly below Effects Settings, and choose your mod name to find its registered settings. This works with the loader alone; TCS Modern Options is optional.
 5. Edit a setting, exit and restart, then confirm it persists in Mods\Config.
 
-If the plugin has an invalid manifest, missing entry DLL, unsupported API, duplicate ID or initialization failure, the loader skips that package and continues with other mods. To update a package, replace its ZIP while the game is closed. The loader refreshes the extracted folder at next startup. Keep user settings in Mods\Config when updating.
+If the plugin has an invalid manifest, missing entry DLL, unsupported API, duplicate ID or initialization failure, the loader skips that package and continues with other mods. To update a package, replace its ZIP while the game is closed. Run Prepare Mods.cmd or use Manage Mod Priorities.cmd > Launch game to refresh the prepared folder before startup. Keep user settings in Mods\Config when updating.
 
 
 The loader renders these controls using native game-menu drawing and input. Settings are paginated automatically; no custom mod UI or pause-menu hooks are needed.
+
+
+## Loader 1.8.0 preparation and initialization order
+
+The external manager prepares plugin archives and verifies their contents. The
+DLL reads the matching prepared cache; it does not launch the manager. Re-run
+preparation after replacing archives.
+
+Optional `[Mod] LoadPriority` is a signed integer clamped to -1000..1000. Lower
+values initialize first, with archive filename as the tie-breaker. The separate
+Character & Shop Extender uses -100 so its tables are installed before ordinary
+plugins. Plugin initialization completes before asset overlay hooks are installed.
+
+Asset catalogs use Format=2 and declare RequiredPlugin when they need the
+extender. The manager refuses launch if that package is absent; the DLL also
+refuses the overlay if the plugin did not initialize successfully. The extender
+retains its module for the process lifetime because native tables and callbacks
+reference its memory. Removing or updating it requires closing the game.

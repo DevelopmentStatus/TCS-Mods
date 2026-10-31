@@ -1,7 +1,6 @@
 #define NOMINMAX
 #include "asset_overlay.h"
 #include "ally_detour.h"
-#include "startup_wait.h"
 #include "portrait_runtime.h"
 #include <filesystem>
 #include <unordered_map>
@@ -92,55 +91,6 @@ bool supported() {
         !std::memcmp(reinterpret_cast<void*>(0x4fa690),sizeSignature,sizeof(sizeSignature)) &&
         !std::memcmp(reinterpret_cast<void*>(0x4fd5d0),bufferSignature,sizeof(bufferSignature));
 }
-bool runImporter(const std::wstring& root) {
-    auto exe=root+L"TCSAssetManager.exe";
-    if(GetFileAttributesW(exe.c_str())==INVALID_FILE_ATTRIBUTES) {
-        logger("TCSAssetManager.exe missing; legacy asset mods are disabled");return false;
-    }
-    CreateDirectoryW((root+L"Mods").c_str(),nullptr);
-    CreateDirectoryW((root+L"Mods\\Assets").c_str(),nullptr);
-    SECURITY_ATTRIBUTES security{sizeof(security),nullptr,TRUE};
-    HANDLE output=CreateFileW((root+L"Mods\\Assets\\import.log").c_str(),GENERIC_WRITE,FILE_SHARE_READ,
-        &security,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
-    if(output==INVALID_HANDLE_VALUE)return false;
-    STARTUPINFOW startup{};startup.cb=sizeof(startup);startup.dwFlags=STARTF_USESTDHANDLES;
-    startup.hStdOutput=startup.hStdError=output;
-    startup.hStdInput=GetStdHandle(STD_INPUT_HANDLE);
-    PROCESS_INFORMATION process{};
-    auto directory=root;while(!directory.empty()&&(directory.back()==L'\\'||directory.back()==L'/'))directory.pop_back();
-    auto eventName=L"Local\\TCSAssetPriority-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64());
-    HANDLE uiEvent=CreateEventW(nullptr,TRUE,FALSE,eventName.c_str());
-    std::wstring command=L"\""+exe+L"\" --game \""+directory+L"\" --startup-ui --ui-event \""+eventName+L"\"";
-    // This exists before Python unpacks, so Steam startup never looks invisible.
-    WNDCLASSW statusClass{};
-    statusClass.lpfnWndProc=DefWindowProcW;
-    statusClass.hInstance=GetModuleHandleW(nullptr);
-    statusClass.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);
-    statusClass.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));
-    statusClass.lpszClassName=L"TCSAssetPreparation";
-    RegisterClassW(&statusClass);
-    HWND progress=CreateWindowExW(WS_EX_APPWINDOW,statusClass.lpszClassName,L"TCS Mod Loader 1.7.4 - Preparing mods",
-        WS_OVERLAPPED|WS_CAPTION|WS_VISIBLE, CW_USEDEFAULT,CW_USEDEFAULT,540,160,
-        nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
-    if(progress) {
-        CreateWindowW(L"STATIC",L"Preparing game assets...\n\nLarge or changed mod packs can take a few minutes.\nThe game will open automatically when preparation finishes.",
-            WS_CHILD|WS_VISIBLE,20,20,490,100,progress,nullptr,GetModuleHandleW(nullptr),nullptr);
-        UpdateWindow(progress);
-    }
-    bool started=CreateProcessW(exe.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW,
-        nullptr,root.c_str(),&startup,&process)!=FALSE;
-    if(!started){if(progress)DestroyWindow(progress);if(uiEvent)CloseHandle(uiEvent);CloseHandle(output);return false;}
-    // Human review time must not consume the asset extraction watchdog.
-    logger("Preparing asset mods; waiting for importer or load-order review");
-    DWORD wait=WaitForAssetStartup(process.hProcess,uiEvent,600000,progress);
-    if(progress)DestroyWindow(progress);
-    if(wait!=WAIT_OBJECT_0){TerminateProcess(process.hProcess,1);WaitForSingleObject(process.hProcess,5000);}
-    DWORD code=1;if(wait==WAIT_OBJECT_0)GetExitCodeProcess(process.hProcess,&code);
-    if(wait!=WAIT_OBJECT_0)logger("Asset startup interrupted or timed out; importer stopped");
-    else logger(code==0?"Asset preparation completed":"Asset importer returned an error; see Mods/Assets/import.log");
-    CloseHandle(process.hProcess);CloseHandle(process.hThread);CloseHandle(output);if(uiEvent)CloseHandle(uiEvent);
-    return wait==WAIT_OBJECT_0&&code==0;
-}
 void registerPackages(const std::wstring& catalog,const TCSModHost& host) {
     int count=GetPrivateProfileIntW(L"Overlay",L"Count",0,catalog.c_str());
     for(int i=0;i<count && i<512;++i) {
@@ -183,11 +133,24 @@ void registerPackages(const std::wstring& catalog,const TCSModHost& host) {
 }
 }
 
-bool PrepareAssetOverlay(const std::wstring& root,const TCSModHost& host,void (*log)(const char*)) try {
+bool catalogRequirementsMet(const std::wstring& catalog,bool (*pluginAvailable)(const char*)) {
+    if(GetPrivateProfileIntW(L"Overlay",L"Format",0,catalog.c_str())!=2)return false;
+    wchar_t required[256]{};
+    GetPrivateProfileStringW(L"Overlay",L"RequiredPlugin",L"",required,256,catalog.c_str());
+    return !required[0]||(pluginAvailable&&pluginAvailable(narrow(required).c_str()));
+}
+
+bool PrepareAssetOverlay(const std::wstring& root,const TCSModHost& host,void (*log)(const char*),
+                         bool (*pluginAvailable)(const char*)) try {
     logger=log;
     if(!supported()){log("Asset overrides: unsupported executable or conflicting file hooks");return false;}
-    if(!runImporter(root)){log("Asset import failed; see Mods/Assets/import.log. Native assets retained.");return false;}
     auto catalog=root+L"Mods\\Assets\\catalog.ini";
+    if(GetFileAttributesW(catalog.c_str())==INVALID_FILE_ATTRIBUTES){
+        log("No prepared asset catalog. Run Prepare Mods.cmd with the game closed.");return false;
+    }
+    if(!catalogRequirementsMet(catalog,pluginAvailable)){
+        log("Asset catalog is outdated or its required plugin failed to load. Prepare mods and install the separate Character & Shop Extender when required.");return false;
+    }
     registerPackages(catalog,host);
     wchar_t folder[2048]{};
     GetPrivateProfileStringW(L"Overlay",L"Path",L"",folder,2048,catalog.c_str());

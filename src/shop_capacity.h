@@ -335,8 +335,7 @@ inline bool installVerifiedPatches() {
     installed=true;note("Shop capacity: 1000 entries, 1044 cheat slots, extended character progress and per-save sidecars installed");
     return true;
 }
-inline bool install(void (*log)(const char*)) {
-    if(installed)return true;logger=log;character_registry::logger=log;portrait_registry::logger=log;
+inline bool supportedHost() {
     auto base=(unsigned char*)GetModuleHandleW(nullptr);
     if(base!=(void*)0x400000||!accessible(base,4096))return false;
     auto dos=(IMAGE_DOS_HEADER*)base;
@@ -344,6 +343,10 @@ inline bool install(void (*log)(const char*)) {
     auto pe=(IMAGE_NT_HEADERS32*)(base+dos->e_lfanew);
     if(pe->Signature!=IMAGE_NT_SIGNATURE||pe->FileHeader.Machine!=IMAGE_FILE_MACHINE_I386||
        pe->FileHeader.TimeDateStamp!=0x4ac4a20b||pe->OptionalHeader.SizeOfImage!=0x268e000)return false;
-    return installVerifiedPatches();
+    return true;
+}
+inline bool install(void (*log)(const char*)) {
+    if(installed)return true;logger=log;character_registry::logger=log;portrait_registry::logger=log;
+    return supportedHost()&&installVerifiedPatches();
 }
 }

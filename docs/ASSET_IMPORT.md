@@ -1,4 +1,19 @@
-# Drag-and-drop asset mods - loader 1.6.11
+# Asset mods ? loader 1.8.0
+
+With the game closed, run **Manage Mod Priorities.cmd > Launch game** or
+**Prepare Mods.cmd** after changing archives or asset settings. Keep the bundled
+TCSAssetRuntime folder beside the helper. The game process no longer prepares mods.
+
+Character roster/shop changes, private character names and generated portrait
+support require the separate **TCSCharacterShopExtender-v1.0.0.zip** in Mods.
+The manager checks that it is prepared; the loader also checks successful plugin
+initialization before enabling a dependent overlay. Cosmetic replacements without
+these requirements can use the core loader alone. Older catalogs must be prepared
+again after this update. Saves and companion files are left intact.
+
+The remaining sections describe archive support and behavior introduced in earlier
+versions; use the preparation workflow above for the current version.
+
 
 For the validated 32-bit Steam PC game on 64-bit Windows 10/11.
 
@@ -18,20 +33,12 @@ generated report.json for evidence and outcomes. This version rebuilds the
 overlay once to apply the new import behavior; mod archives and saves are not
 edited. A successful roster registration does not bypass collection unlocks.
 
-## Saga Tweaks without Universal ASI Loader
+## ASI integration removed (1.7.5)
 
-Loader 1.6.8 accepts the supplied Saga Tweaks 1.2.0 .7z directly in Mods, kept
-compressed. Replace both d3d9.dll and TCSAssetManager.exe with this release.
-Only the verified 1.2.0 SagaTweaks.asi is supported; unrelated ASIs or changed
-Saga binaries are rejected. The original archive and ASI bytes are unchanged.
-
-Its INI/log are kept beside the stable generated ASI under
-Mods/Loaded/ASI/SagaTweaks. Use Saga's Tweaks/Video Settings pages for its
-options. TCS Modern Options v0.4.0 remains loaded and forwards its display
-settings through Saga's exported controls. Only TCS Skip Splash is skipped
-while Saga is active. Mod Settings appears below Effects Settings, with Saga's
-native row indices translated during dispatch.
-Remove/disable the Saga archive and restart to restore the normal plugin set.
+The loader no longer stages or loads Saga Tweaks or other ASI modules.
+Remove ASI archives from Mods before starting. Install ASI mods separately
+using their authors' instructions; compatibility is not established.
+The loader's own plugins, Mod Settings and asset importer remain supported.
 
 ## Install and use
 
