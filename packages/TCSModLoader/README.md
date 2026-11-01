@@ -12,8 +12,8 @@ without it. The manager explains missing dependencies before launching.
 ## Install or update
 
 1. Close the game and back up any existing d3d9.dll.
-2. Extract this ZIP beside LEGOStarWarsSaga.exe, including TCSAssetManager.exe
-   and the complete TCSAssetRuntime folder. Keep that runtime folder intact.
+2. Extract this ZIP beside LEGOStarWarsSaga.exe, including TCSAssetManager.exe.
+   The helper includes its Python runtime; no separate runtime folder is needed.
 3. Put desired plugin and supported asset ZIP/RAR files directly in Mods.
    Keep them compressed. Add the separate extender ZIP for character packs.
 4. Double-click Launch Modded Game.cmd. It prepares plugins and assets first,
@@ -23,8 +23,8 @@ without it. The manager explains missing dependencies before launching.
    Prepare Mods.cmd prepares without starting the game.
 
 The loader reads prepared files. It does not launch importers or extract plugin
-DLLs during game startup. The helper loads its bundled Python libraries from TCSAssetRuntime. These
-libraries used to be embedded inside the helper EXE; keep the folder installed.
+DLLs during game startup. The helper includes its Python libraries inside the EXE, as in older versions.
+An old TCSAssetRuntime folder is no longer used and may be removed with the game and helper closed.
 Keep Mods/Config when updating to preserve settings.
 Built-in Saga Tweaks / ASI loading remains removed; install ASI mods separately
 following their authors' instructions. Compatibility is not established.
@@ -50,5 +50,5 @@ https://github.com/DevelopmentStatus/TCS-Mods
 
 Required third-party license notices are in licenses/.
 
-This packaging update keeps the tested 1.8.0 DLL/helper binaries unchanged.
-The helper window may therefore still display version 1.8.0.
+This packaging update keeps the tested 1.8.0 loader DLL unchanged.
+The helper is rebuilt as a single EXE and displays version 1.8.1.

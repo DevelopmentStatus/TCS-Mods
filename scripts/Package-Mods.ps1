@@ -20,9 +20,8 @@ foreach ($component in $components) {
     }
 }
 New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
-$helperPath = Join-Path $BuildPath 'TCSAssetManager'
-if (!(Test-Path -LiteralPath (Join-Path $helperPath 'TCSAssetManager.exe')) -or
-    !(Test-Path -Path (Join-Path $helperPath 'TCSAssetRuntime\python3*.dll'))) {
+$helperPath = Join-Path $BuildPath 'TCSAssetManager.exe'
+if (!(Test-Path -LiteralPath $helperPath -PathType Leaf)) {
     throw 'Missing TCSAssetManager.exe. Run scripts/Build-AssetManager.ps1 before packaging.'
 }
 # Unique staging folders avoid picking up files from previous packaging runs.
@@ -34,7 +33,7 @@ foreach ($component in $components) {
     Copy-Item -Path (Join-Path $repoPath "packages\$($component.Name)\*") -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $BuildPath $component.Dll) -Destination $stage
     if ($component.Name -eq 'TCSModLoader') {
-        Copy-Item -Path (Join-Path $helperPath '*') -Destination $stage -Recurse
+        Copy-Item -LiteralPath $helperPath -Destination $stage
         # Public installers contain the short package README and required
         # licenses. Developer guides, research, release history and Nexus copy
         # stay in the repository rather than the user's game installation.

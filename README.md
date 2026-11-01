@@ -15,10 +15,9 @@ support. Existing companion saves remain compatible; keep them beside native sav
 
 With the game closed, double-click **Launch Modded Game.cmd** to prepare and
 start the game. `Manage Mod Priorities.cmd > Launch game` also prepares it. Repeat after changing archives or
-asset settings. Keep `TCSAssetRuntime` beside `TCSAssetManager.exe`.
+asset settings. The Python runtime is bundled inside `TCSAssetManager.exe`; no separate runtime folder is needed.
 The new loader DLL scanned at **0/70**; the separate extender ZIP at **0/67**.
-The 1.8.1 ZIP has not been scanned; its status is unverified. The DLL/helper
-binaries are unchanged from 1.8.0, and no further scan checks were performed. See [1.8.1 release notes and separate scan results](docs/releases/TCSModLoader-v1.8.1.md).
+The 1.8.1 ZIP has not been scanned; its status is unverified. The loader DLL is unchanged from 1.8.0. The helper was rebuilt as a single EXE, and no further scan checks were performed. See [1.8.1 release notes and separate scan results](docs/releases/TCSModLoader-v1.8.1.md).
 
 ## Downloads and mod catalog
 
@@ -45,7 +44,7 @@ The loader 1.8.1 and Character & Shop Extender 1.0.0 ZIPs are built from the sou
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.8.1.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe`, plus the complete `TCSAssetRuntime` folder, must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.8.1.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
 5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Double-click **Launch Modded Game.cmd** to prepare and start the game. Use **Manage Mod Priorities.cmd** to edit priorities. Open **Pause > Mod Settings** to configure mods.
 

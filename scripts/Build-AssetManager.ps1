@@ -1,7 +1,7 @@
 param(
     [string]$Python = 'python',
     [string]$BuildPath = (Join-Path $PSScriptRoot '..\build\Release'),
-    [string]$WorkPath = (Join-Path $PSScriptRoot '..\build\asset-helper-onedir')
+    [string]$WorkPath = (Join-Path $PSScriptRoot '..\build\asset-helper-onefile')
 )
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -10,7 +10,7 @@ $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $helperErrorPreference = $ErrorActionPreference
 try {
     $ErrorActionPreference = 'Continue'
-    & $Python -m PyInstaller --noconfirm --clean --onedir --noupx --contents-directory TCSAssetRuntime --name TCSAssetManager --distpath $BuildPath --workpath $WorkPath --specpath $WorkPath (Join-Path $repo 'tools/asset_manager.py')
+    & $Python -m PyInstaller --noconfirm --clean --onefile --noupx --name TCSAssetManager --distpath $BuildPath --workpath $WorkPath --specpath $WorkPath (Join-Path $repo 'tools/asset_manager.py')
     $helperExitCode = $LASTEXITCODE
 } finally {
     $ErrorActionPreference = $helperErrorPreference

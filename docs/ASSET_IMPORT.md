@@ -1,8 +1,8 @@
-# Asset mods ? loader 1.8.0
+# Asset mods - loader 1.8.1
 
 With the game closed, run **Manage Mod Priorities.cmd > Launch game** or
-**Prepare Mods.cmd** after changing archives or asset settings. Keep the bundled
-TCSAssetRuntime folder beside the helper. The game process no longer prepares mods.
+**Prepare Mods.cmd** after changing archives or asset settings. The helper bundles
+its Python runtime inside the EXE. The game process no longer prepares mods.
 
 Character roster/shop changes, private character names and generated portrait
 support require the separate **TCSCharacterShopExtender-v1.0.0.zip** in Mods.
