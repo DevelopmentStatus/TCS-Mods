@@ -1,5 +1,5 @@
 [center][size=6][b]TCS MOD LOADER[/b][/size]
-[size=4]Version 1.8.2[/size]
+[size=4]Version 1.8.3[/size]
 An easier way to use mods in LEGO Star Wars: The Complete Saga.[/center]
 
 [line]
@@ -9,16 +9,16 @@ TCS Mod Loader imports supported asset mods from ZIP and RAR files and loads nat
 
 Choose which asset mod wins when files overlap, then open [b]Pause > Mod Settings[/b] to change settings offered by installed mods.
 
-[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.2][b]Download TCS Mod Loader 1.8.2[/b][/url]
+[url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.3][b]Download TCS Mod Loader 1.8.3[/b][/url]
 [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSCharacterShopExtender-v1.0.0]Download optional Character & Shop Extender 1.0.0[/url] | [url=https://github.com/DevelopmentStatus/TCS-Mods]Project page[/url]
 
 [line]
 
-[b][size=4]What changed in 1.8.2?[/size][/b]
+[b][size=4]What changed in 1.8.3?[/size][/b]
 [list]
 [*]Only one shortcut: [b]Manage Mod Priorities.cmd[/b]. Save & prepare applies mods for normal Steam/EXE launches. Launch game prepares and starts Steam installations through Steam, with a local EXE fallback.
 [*]The helper clears its bundled runtime DLL search path before launching Steam or the game EXE.
-[*]Unprepared plugins now show an explanation instead of only writing skipped-plugin messages to a log.
+[*]Missing or stale preparation now stops the initial startup and opens Manage Mod Priorities automatically. Launch game prepares and starts through Steam; closing the manager leaves the game closed. Prepared setups start normally.
 [*]Cache storage keeps the active generation plus one previous generation per cache. The optional plugin installers share one rotating previous-package backup.
 [*]The Python runtime is bundled inside TCSAssetManager.exe. Character & Shop Extender remains a separate optional plugin.
 [/list]
@@ -27,7 +27,7 @@ Choose which asset mod wins when files overlap, then open [b]Pause > Mod Setting
 [list=1]
 [*]Close the game and open the folder containing [b]LEGOStarWarsSaga.exe[/b].
 [*]Back up any existing [b]d3d9.dll[/b]. Multiple mods cannot use that same filename at once; compatibility with other proxy DLLs has not been established.
-[*]Download [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.2]loader 1.8.2 from GitHub Releases[/url]. Under Assets, choose [b]TCSModLoader-v1.8.2.zip[/b].
+[*]Download [url=https://github.com/DevelopmentStatus/TCS-Mods/releases/tag/TCSModLoader-v1.8.3]loader 1.8.3 from GitHub Releases[/url]. Under Assets, choose [b]TCSModLoader-v1.8.3.zip[/b].
 [*]Open the downloaded loader ZIP to see the files inside. If you cannot open it, download and install [url=https://7-zip.org/download.html][b]7-Zip[/b][/url] from its official website. Choose the installer matching your Windows system; most Windows 10/11 PCs use the 64-bit x64 version. After installing, right-click the loader ZIP and choose [b]7-Zip > Open archive[/b]. On Windows 11, you may need [b]Show more options[/b] first.
 [*]Select [b]all files and folders inside the loader ZIP[/b] and drag them into the game folder. You can also use 7-Zip's [b]Extract[/b] button and choose that folder. d3d9.dll, TCSAssetManager.exe, and Manage Mod Priorities.cmd must sit directly beside LEGOStarWarsSaga.exe, not inside an extra TCSModLoader subfolder. [b]Extract the loader ZIP; keep the mod ZIP/RAR files you put in Mods compressed.[/b]
 [*]Put supported mod ZIP/RAR files directly in [b]Mods[/b]. Keep mod archives compressed.
@@ -80,7 +80,7 @@ The importer supports the layouts used by Additional Levels 2.3.1, Additional Le
 Install the optional Character & Shop Extender ZIP, enable the relevant character packs and prepare again. Check the selected character variant and overlapping packs. Story unlocks and shop purchases still apply. Unsupported packs may need additional support.
 
 [b]I used the built-in extender in an older loader[/b]
-Install the separate extender ZIP to retain expanded character/shop and companion-save functionality with 1.8.2. Keep native saves and .tcs-characters companions together. Do not delete companions when backing up or transferring progress.
+Install the separate extender ZIP to retain expanded character/shop and companion-save functionality with 1.8.3. Keep native saves and .tcs-characters companions together. Do not delete companions when backing up or transferring progress.
 
 [b]The priority manager reports an import error[/b]
 Select the failed archive to read its error. Disable it and save, or replace its download. Launch game prepares the enabled selection. If reporting a problem, include the mod name/version, report.json named in the error, Mods/Assets/import.log and TCSModernOptions.log where available.
@@ -98,4 +98,4 @@ No. Check each author's instructions and requirements. Overlapping shared files 
 [line]
 
 [b][size=4]Antivirus scan information[/size][/b]
-This 1.8.2 loader DLL, helper and ZIP have not been scanned. Their antivirus status is [b]unverified[/b]. Historical results apply only to the exact earlier files recorded in the repository release notes.
+This 1.8.3 loader DLL, helper and ZIP have not been scanned. Their antivirus status is [b]unverified[/b]. Historical results apply only to the exact earlier files recorded in the repository release notes.

@@ -1,4 +1,4 @@
-# TCS Mod Loader 1.8.2
+# TCS Mod Loader 1.8.3
 
 For the supported Windows Steam version of LEGO Star Wars: The Complete Saga.
 Provides the Direct3D 9 proxy, asset overlay, plugin host and native Mod Settings.
@@ -11,19 +11,25 @@ Provides the Direct3D 9 proxy, asset overlay, plugin host and native Mod Setting
    Keep mod archives compressed. Character packs requiring expanded tables,
    private names or portrait support also need the separate optional
    TCSCharacterShopExtender-v1.0.0.zip in Mods.
-3. Open Manage Mod Priorities.cmd. Choose Save & prepare to apply mods without
-   launching, or Launch game to prepare and start the game. Steam installations
-   launch through Steam; other folders launch their LEGOStarWarsSaga.exe.
-4. After successful preparation, normal Steam/EXE launches use those mods.
-   Repeat Save & prepare after changing archives or asset settings. Large packs
-   can take several minutes. Preparation errors keep the editor open to fix them.
+3. Start through Steam. If mods need preparation, the
+   initial game startup stops and Manage Mod Priorities opens automatically.
+   Choose Launch game to prepare your mods and start through Steam, or choose
+   Save & prepare to apply changes without starting the game.
+4. Prepared setups start normally. Archive or asset priority/variant changes,
+   missing plugin caches or a missing overlay reopen the manager when needed.
+   Large packs can take several minutes. Closing the manager does not launch
+   the game; preparation errors stay in the editor for you to fix.
+   You can also open Manage Mod Priorities.cmd whenever you want to edit order.
+   For Steam application-load errors, start from Steam or use Launch game in
+   the manager. Steam must accept startup before the loader can run.
 
 Manage Mod Priorities.cmd is the only command script in this package. Remove
 Launch Modded Game.cmd and Prepare Mods.cmd left by older versions. An old
 TCSAssetRuntime folder is no longer used. Keep Mods/Config and all saved games.
 
 The loader reads prepared files and does not run an importer inside the game.
-Starting with unprepared plugins now explains the required manager step.
+It checks preparation before loading plugins and automatically opens the manager
+when needed. The manager waits until the initial game process has exited.
 
 ## Settings and storage
 

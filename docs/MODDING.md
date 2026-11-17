@@ -11,7 +11,7 @@ The TCS Mod Loader targets the validated 32-bit Steam PC build of LEGO Star Wars
 
 ## Install mods
 
-Keep each mod as a ZIP. Put mod ZIPs directly into `<game folder>\Mods`; do not extract them. For example, put `TCSFirstPerson-v0.4.0.zip` and `TCSModernOptions-v0.4.0.zip` together there. Open Manage Mod Priorities.cmd and choose Save & prepare, then launch normally through Steam or the game EXE. Launch game in the manager prepares and launches in one step. Each package is extracted under `Mods\Loaded`; configuration is stored under `Mods\Config`.
+Keep each mod as a ZIP. Put mod ZIPs directly into `<game folder>\Mods`; do not extract them. For example, put `TCSFirstPerson-v0.4.0.zip` and `TCSModernOptions-v0.4.0.zip` together there. Start normally through Steam or the game EXE. If preparation is missing or stale, the game stops that startup and opens Manage Mod Priorities automatically. Choose Launch game, or use Save & prepare and start later. Launch game in the manager prepares and launches in one step. Each package is extracted under `Mods\Loaded`; configuration is stored under `Mods\Config`.
 
 Pause the game and choose **Mod Settings**, directly below **Effects Settings**, to see installed mods, then select a mod name to open its settings. This menu belongs to the loader and works without TCS Modern Options. Registered settings receive controls automatically, rendered with the game's own menu text and navigation. Select the mod name, use the page row for additional settings, and confirm or left/right to change a value. Back or Escape returns to the pause menu. Display changes use the native game resource-release/reset/rebuild sequence. Choose Keep display changes to save them; unconfirmed changes revert after 15 seconds.
 

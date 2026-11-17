@@ -20,6 +20,7 @@
 #include "asset_overlay.h"
 #include "archive_integrity.h"
 #include "supported_game.h"
+#include "startup_preparation.h"
 
 #pragma comment(lib,"winmm.lib")
 namespace {
@@ -332,7 +333,7 @@ LRESULT CALLBACK GameProc(HWND h,UINT m,WPARAM w,LPARAM l) {
     return CallWindowProcW(reinterpret_cast<WNDPROC>(GetPropW(h,L"TCSOriginalProc")),h,m,w,l);
 }
 
-// Preparation is an explicit manager action, never a child process of the game.
+// Native plugins are prepared outside the game; missing state hands off first.
 bool preparedPlugin(const std::wstring& zip,const std::wstring& cacheName,std::wstring& destination){
     const auto cache=root+L"Mods\\Loaded\\"+cacheName;
     auto ordinary=[](const std::wstring& path,bool directory){
@@ -386,17 +387,21 @@ std::wstring pluginCacheName(const std::wstring& filename) {
 bool pluginAvailable(const char* id) {
     return id&&std::any_of(plugins.begin(),plugins.end(),[&](const auto& p){return p->id==id&&p->module;});
 }
-bool missingAssetPreparation() {
-    if(GetFileAttributesW((root+L"Mods\\Assets\\catalog.ini").c_str())!=INVALID_FILE_ATTRIBUTES)return false;
-    WIN32_FIND_DATAW file{};HANDLE find=FindFirstFileW((root+L"Mods\\*").c_str(),&file);
-    if(find==INVALID_HANDLE_VALUE)return false;
-    bool found=false;
-    do {
-        if(file.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)continue;
-        const auto extension=wcsrchr(file.cFileName,L'.');
-        if(extension&&(!_wcsicmp(extension,L".zip")||!_wcsicmp(extension,L".rar")||!_wcsicmp(extension,L".7z"))){found=true;break;}
-    }while(FindNextFileW(find,&file));
-    FindClose(find);return found;
+bool startupPreparationNeeded() {
+    if(!startup_preparation::receiptCurrent(root))return true;
+    for(const auto& name:startup_preparation::archives(root)) {
+        const auto extension=wcsrchr(name.c_str(),L'.');
+        if(!extension||_wcsicmp(extension,L".zip"))continue;
+        const auto path=root+L"Mods\\"+name;
+        std::wstring prepared;
+        if(!ZipHasRootManifest(path))continue;
+        if(!preparedPlugin(path,pluginCacheName(name),prepared))return true;
+        const auto entry=startup_preparation::value(prepared+L"\\manifest.ini",L"Mod",L"Entry");
+        if(entry.empty()||entry.find_first_of(L"/\\:")!=std::wstring::npos)return true;
+        const auto attributes=GetFileAttributesW((prepared+L"\\"+entry).c_str());
+        if(attributes==INVALID_FILE_ATTRIBUTES||(attributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return true;
+    }
+    return false;
 }
 void loadPlugins() {
     struct Archive {std::wstring path,filename;int priority;};
@@ -497,12 +502,8 @@ extern "C" IDirect3D9* WINAPI ProxyCreate9(UINT version) {
         slash[1]=0;root=exe;
         timeBeginPeriod(1);
         logFile=_wfsopen((root+L"TCSModernOptions.log").c_str(),L"w",_SH_DENYNO);
+        if(startupPreparationNeeded())startup_preparation::handoff(root,log);
         loadCoreConfig();loadPlugins();PrepareAssetOverlay(root,host,log,pluginAvailable);
-        if(preparationMissing||missingAssetPreparation())MessageBoxW(nullptr,
-            L"Some mods have not been prepared for this installation.\n\n"
-            L"Close the game, open Manage Mod Priorities.cmd and choose Save & prepare. "
-            L"Then start normally through Steam or the game EXE, or use Launch game in the manager.",
-            L"TCS Mod Loader - mods need preparation",MB_OK|MB_ICONINFORMATION);
         log("TCS Modern Options loader initialized");
     }
     auto d=fn(version);

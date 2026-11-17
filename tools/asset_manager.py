@@ -20,6 +20,7 @@ from asset_version import VERSION
 from portrait_assets import prepare as prepare_portraits
 import character_names
 from cache_retention import prune
+from preparation_state import write_receipt, wait_for_game
 
 
 def text(data):
@@ -444,6 +445,7 @@ def prepare_game(game, review=None):
         raise ValueError('These character assets require the separate Character & Shop Extender. '
                          'Install TCSCharacterShopExtender-v1.0.0.zip in Mods and prepare again. '
                          'No game was launched and existing saves were not changed.')
+    write_receipt(game, package_id)
     return result
 
 
@@ -457,9 +459,12 @@ def main():
     parser.add_argument('--ui-event', help=argparse.SUPPRESS)
     parser.add_argument('--extract-plugin', type=Path, help=argparse.SUPPRESS)
     parser.add_argument('--plugin-cache', help=argparse.SUPPRESS)
+    parser.add_argument('--wait-for-game', type=int, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.launch and (args.manage or args.startup_ui):
         parser.error('--launch cannot be combined with --manage or --startup-ui')
+    if args.wait_for_game is not None and (not args.manage or args.wait_for_game <= 0):
+        parser.error('--wait-for-game requires --manage and a positive process ID')
     try:
         if args.check_gui:
             import tkinter as tk
@@ -468,6 +473,8 @@ def main():
             return 0
         if args.game is None:
             parser.error('--game is required unless --check-gui is used')
+        if args.wait_for_game is not None:
+            wait_for_game(args.wait_for_game)
         if args.extract_plugin is not None:
             from plugin_cache import prepare
             print(prepare(args.game, args.extract_plugin, args.plugin_cache or ''))

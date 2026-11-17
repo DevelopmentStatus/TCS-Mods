@@ -6,7 +6,12 @@ Targets the validated **32-bit Windows Steam PC build**. These are native C++ DL
 
 ## Loader and optional character extender
 
-Loader 1.8.2 fixes preparation and launching with one shortcut:
+Loader 1.8.3 automatically opens the priority manager when preparation is
+missing or stale. It stops the initial game startup before loading plugins;
+**Launch game** in the manager prepares mods and starts through Steam. Closing
+the manager leaves the game closed. Prepared setups start normally.
+
+You can still open the single shortcut:
 **Manage Mod Priorities.cmd**. **Save & prepare** applies mods for normal Steam
 or EXE launches; **Launch game** prepares and starts the Steam installation
 through Steam, falling back to the local EXE for standalone folders. The helper
@@ -20,20 +25,20 @@ character tables, private names or portrait support. Keep companion saves.
 Only the active cache and one previous generation per cache are retained.
 Plugin installers share one rotating previous-package backup. This build's
 antivirus status is unverified; prior results apply to the exact prior files.
-See [1.8.2 release notes](docs/releases/TCSModLoader-v1.8.2.md).
+See [1.8.3 release notes](docs/releases/TCSModLoader-v1.8.3.md).
 
 ## Downloads and mod catalog
 
 Download the ZIPs below using GitHub's **Download raw file** button. Install the loader first, then choose any combination of plugins.
 
-[Loader 1.8.2 package](dist/TCSModLoader-v1.8.2.zip) provides asset importing,
+[Loader 1.8.3 package](dist/TCSModLoader-v1.8.3.zip) provides asset importing,
 plugin loading and Mod Settings. Install the optional extender separately for
 up to 1,000 registered characters/shop entries and compatible companion saves.
 Saga Tweaks / ASI integration remains removed.
 
 | Component | Included build | What it does | Main source |
 | --- | --- | --- | --- |
-| [TCS Mod Loader](dist/TCSModLoader-v1.8.2.zip) | 1.8.2 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [TCS Mod Loader](dist/TCSModLoader-v1.8.3.zip) | 1.8.3 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
 | [Character & Shop Extender](dist/TCSCharacterShopExtender-v1.0.0.zip) | 1.0.0 | Optional expanded character/shop tables, text/portrait capacity and companion saves | [character_shop_extender.cpp](src/character_shop_extender.cpp), [shop_capacity.h](src/shop_capacity.h) |
 | [TCS First Person](dist/TCSFirstPerson-v0.4.0.zip) | 0.4.0 | First-person camera, animated head camera style, orbit camera, mouse aiming, visible body, and PC controls | [mod.cpp](src/mod.cpp) |
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
@@ -41,15 +46,15 @@ Saga Tweaks / ASI integration remains removed.
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
 | [Shop Ownership Fix](dist/TCSShopOwnershipFix-v1.0.0.zip) | 1.0.0 | Corrects false unpurchased shop entries for characters already owned, without changing studs or saves | [shop_ownership.cpp](src/shop_ownership.cpp) |
 
-The loader 1.8.2 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
+The loader 1.8.3 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
 ## Installation
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.8.2.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.8.3.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
-5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Open **Manage Mod Priorities.cmd**, then choose **Save & prepare** or **Launch game**. After preparation you can also start normally through Steam or the game EXE. Open **Pause > Mod Settings** to configure mods.
+5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Start normally through Steam or the game EXE; the priority manager opens automatically if preparation is needed. Choose **Save & prepare** or **Launch game**. You can also open **Manage Mod Priorities.cmd** manually. Open **Pause > Mod Settings** to configure mods.
 
 Example installation:
 

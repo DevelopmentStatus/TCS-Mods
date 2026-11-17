@@ -1,8 +1,11 @@
-# Asset mods - loader 1.8.2
+# Asset mods - loader 1.8.3
 
 With the game closed, run **Manage Mod Priorities.cmd > Launch game** or
 **Manage Mod Priorities.cmd > Save & prepare** after changing archives or asset settings. The helper bundles
-its Python runtime inside the EXE. The game process no longer prepares mods.
+its Python runtime inside the EXE. Normal Steam/EXE starts check preparation
+before loading plugins. Missing or stale state opens the manager and stops that
+game startup; Launch game in the manager prepares and starts again. Closing the
+manager leaves the game closed. Prepared setups start without the manager.
 
 Character roster/shop changes, private character names and generated portrait
 support require the separate **TCSCharacterShopExtender-v1.0.0.zip** in Mods.
