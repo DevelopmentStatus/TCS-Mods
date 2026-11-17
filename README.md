@@ -6,31 +6,34 @@ Targets the validated **32-bit Windows Steam PC build**. These are native C++ DL
 
 ## Loader and optional character extender
 
-Loader 1.8.1 adds a prepare-and-launch shortcut. Character/shop expansion and
-companion-save code remain in
-**[Character & Shop Extender 1.0.0](dist/TCSCharacterShopExtender-v1.0.0.zip)**.
-The loader ZIP does not contain that plugin. Add its compressed ZIP to `Mods`
-when using character packs that need expanded tables, private names or portrait
-support. Existing companion saves remain compatible; keep them beside native saves.
+Loader 1.8.2 fixes preparation and launching with one shortcut:
+**Manage Mod Priorities.cmd**. **Save & prepare** applies mods for normal Steam
+or EXE launches; **Launch game** prepares and starts the Steam installation
+through Steam, falling back to the local EXE for standalone folders. The helper
+clears its bundled runtime DLL search path before starting either application.
 
-With the game closed, double-click **Launch Modded Game.cmd** to prepare and
-start the game. `Manage Mod Priorities.cmd > Launch game` also prepares it. Repeat after changing archives or
-asset settings. The Python runtime is bundled inside `TCSAssetManager.exe`; no separate runtime folder is needed.
-The new loader DLL scanned at **0/70**; the separate extender ZIP at **0/67**.
-The 1.8.1 ZIP has not been scanned; its status is unverified. The loader DLL is unchanged from 1.8.0. The helper was rebuilt as a single EXE, and no further scan checks were performed. See [1.8.1 release notes and separate scan results](docs/releases/TCSModLoader-v1.8.1.md).
+Character/shop expansion and companion saves remain in the separate optional
+**[Character & Shop Extender 1.0.0](dist/TCSCharacterShopExtender-v1.0.0.zip)**.
+The loader does not contain that plugin. Add it for packs requiring expanded
+character tables, private names or portrait support. Keep companion saves.
+
+Only the active cache and one previous generation per cache are retained.
+Plugin installers share one rotating previous-package backup. This build's
+antivirus status is unverified; prior results apply to the exact prior files.
+See [1.8.2 release notes](docs/releases/TCSModLoader-v1.8.2.md).
 
 ## Downloads and mod catalog
 
 Download the ZIPs below using GitHub's **Download raw file** button. Install the loader first, then choose any combination of plugins.
 
-[Loader 1.8.1 package](dist/TCSModLoader-v1.8.1.zip) provides asset importing,
+[Loader 1.8.2 package](dist/TCSModLoader-v1.8.2.zip) provides asset importing,
 plugin loading and Mod Settings. Install the optional extender separately for
 up to 1,000 registered characters/shop entries and compatible companion saves.
 Saga Tweaks / ASI integration remains removed.
 
 | Component | Included build | What it does | Main source |
 | --- | --- | --- | --- |
-| [TCS Mod Loader](dist/TCSModLoader-v1.8.1.zip) | 1.8.1 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
+| [TCS Mod Loader](dist/TCSModLoader-v1.8.2.zip) | 1.8.2 | Direct3D 9 proxy, ZIP/RAR asset importing, asset overrides, plugin API, saved settings, and a native pause-menu settings interface | [loader.cpp](src/loader.cpp), [native_pause_menu.cpp](src/native_pause_menu.cpp) |
 | [Character & Shop Extender](dist/TCSCharacterShopExtender-v1.0.0.zip) | 1.0.0 | Optional expanded character/shop tables, text/portrait capacity and companion saves | [character_shop_extender.cpp](src/character_shop_extender.cpp), [shop_capacity.h](src/shop_capacity.h) |
 | [TCS First Person](dist/TCSFirstPerson-v0.4.0.zip) | 0.4.0 | First-person camera, animated head camera style, orbit camera, mouse aiming, visible body, and PC controls | [mod.cpp](src/mod.cpp) |
 | [TCS Modern Options](dist/TCSModernOptions-v0.4.0.zip) | 0.4.0 | Resolution, window mode, VSync, and frame cap controls | [modern_options.cpp](src/modern_options.cpp) |
@@ -38,15 +41,15 @@ Saga Tweaks / ASI integration remains removed.
 | [TCS Skip Splash](dist/TCSSkipSplash-v1.0.0.zip) | 1.0.0 | Bypasses startup splash screens through the game's synchronous startup path | [skip_splash.cpp](src/skip_splash.cpp) |
 | [Shop Ownership Fix](dist/TCSShopOwnershipFix-v1.0.0.zip) | 1.0.0 | Corrects false unpurchased shop entries for characters already owned, without changing studs or saves | [shop_ownership.cpp](src/shop_ownership.cpp) |
 
-The loader 1.8.1 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
+The loader 1.8.2 and Character & Shop Extender 1.0.0 ZIPs are built from the source in this repository. Other plugin ZIPs are preserved builds from the original workspace. The source is the current workspace snapshot, not a reconstructed source history for every historical ZIP. [Older packages](dist/archive/) are retained for reference; see the [download archive guide](dist/README.md) before using them.
 
 ## Installation
 
 1. Close the game. Open its installation folder containing `LEGOStarWarsSaga.exe`. In Steam, use **Properties > Installed Files > Browse**.
 2. Back up any existing `d3d9.dll` before installing the loader. Multiple proxy DLLs cannot occupy the same filename; compatibility or chaining with other injectors has not been established.
-3. Extract `TCSModLoader-v1.8.1.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
+3. Extract `TCSModLoader-v1.8.2.zip` into the game folder. Both `d3d9.dll` and `TCSAssetManager.exe` must sit beside the game executable. Create a `Mods` folder if it is missing.
 4. Copy the desired plugin ZIPs directly into `Mods`. **Keep plugin ZIPs compressed.** Do not extract them yourself or nest them inside another folder.
-5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Double-click **Launch Modded Game.cmd** to prepare and start the game. Use **Manage Mod Priorities.cmd** to edit priorities. Open **Pause > Mod Settings** to configure mods.
+5. For character packs, add `TCSCharacterShopExtender-v1.0.0.zip` to `Mods`. Open **Manage Mod Priorities.cmd**, then choose **Save & prepare** or **Launch game**. After preparation you can also start normally through Steam or the game EXE. Open **Pause > Mod Settings** to configure mods.
 
 Example installation:
 
@@ -71,9 +74,9 @@ When preparing overlapping enabled mods with equal priorities, the manager autom
 
 Modern Overhaul and both Additional Levels variants use the general importer. Enable only one Additional Levels variant, and obtain Modern Overhaul separately for its variant. Removing an archive and preparing again restores the underlying asset unless another enabled mod replaces it. No QuickBMS or separate Python installation is needed.
 
-Only install one ZIP per plugin ID. Move older versions out of the top level of `Mods` before upgrading. Keep `Mods/Config` to retain settings. The manager refreshes prepared packages under `Mods/Loaded` before launch; the loader reads those prepared files.
+Only install one ZIP per plugin ID. Move older versions out of the top level of `Mods` before upgrading. Keep `Mods/Config` to retain settings. Save & prepare and Launch game refresh prepared packages under `Mods/Loaded`; the loader reads those prepared files.
 
-The optional helper scripts [Install-FirstPersonPlugin.ps1](Install-FirstPersonPlugin.ps1) and [Install-AllyDamagePlugin.ps1](Install-AllyDamagePlugin.ps1) install the included plugin builds and back up matching older ZIPs. Supply your own game folder:
+The optional helper scripts [Install-FirstPersonPlugin.ps1](Install-FirstPersonPlugin.ps1) and [Install-AllyDamagePlugin.ps1](Install-AllyDamagePlugin.ps1) install the included plugin builds and retain one previous plugin ZIP in a shared rotating backup slot. Supply your own game folder:
 
 ```powershell
 .\Install-FirstPersonPlugin.ps1 -GamePath 'C:\Games\LEGO Star Wars Saga'

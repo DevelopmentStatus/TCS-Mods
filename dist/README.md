@@ -4,11 +4,11 @@
 from the included source and confirmed working by the user. Install its ZIP in
 `Mods` without extracting it. See the [main README](../README.md) for details.
 
-The current loader is [TCSModLoader-v1.8.1.zip](TCSModLoader-v1.8.1.zip).
+The current loader is [TCSModLoader-v1.8.2.zip](TCSModLoader-v1.8.2.zip).
 Character/shop expansion and companion saves are a separate optional
 [Character & Shop Extender 1.0.0](TCSCharacterShopExtender-v1.0.0.zip) package.
 The loader ZIP does not include the extender. See the
-[1.8.1 release notes](../docs/releases/TCSModLoader-v1.8.1.md) for exact hashes,
+[1.8.2 release notes](../docs/releases/TCSModLoader-v1.8.2.md) for exact hashes,
 separate antivirus results, tests and limitations. Earlier published ZIPs remain
 for reference. `SHA256SUMS.txt` covers tracked ZIP downloads.
 

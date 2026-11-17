@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).parents[1] / 'tools'))
 import asset_manager as manager
@@ -83,6 +84,55 @@ class LaunchTests(unittest.TestCase):
                 self.assertEqual(kwargs['env']['TCS_PRIORITY_REVIEWED'], 'signature')
                 self.assertEqual(kwargs['env']['PYINSTALLER_RESET_ENVIRONMENT'], '1')
             self.assertEqual(os.environ.get('TCS_PRIORITY_REVIEWED'), previous)
+
+    def test_steam_install_launches_the_matching_app_through_steam(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            steam = root / 'Steam Client/steam.exe'; steam.parent.mkdir(); steam.touch()
+            game = root / 'steamapps/common/LEGO Star Wars Saga'; game.mkdir(parents=True)
+            (game / 'LEGOStarWarsSaga.exe').touch()
+            manifest = game.parent.parent / 'appmanifest_32440.acf'
+            manifest.write_text('"AppState" { "appid" "32440" "installdir" "LEGO Star Wars Saga" '
+                                '"LauncherPath" "' + str(steam).replace('\\', '\\\\') + '" }')
+            with patch('asset_manager.subprocess.Popen') as start:
+                manager.launch_game(game, 'ready')
+            self.assertEqual(start.call_args.args[0], [str(steam), '-applaunch', '32440'])
+            manifest.write_text('"appid" "32440" "installdir" "Another copy"')
+            self.assertEqual(manager.launch_command(game), [str(game / 'LEGOStarWarsSaga.exe')])
+
+    def test_frozen_launch_resets_and_restores_dll_search_even_on_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            game = Path(folder); (game / 'LEGOStarWarsSaga.exe').touch()
+            runtime = str(game / '_MEI fixture')
+            kernel = MagicMock()
+            def get_directory(length, buffer):
+                buffer.value = runtime
+                return len(runtime)
+            kernel.GetDllDirectoryW.side_effect = get_directory
+            kernel.SetDllDirectoryW.return_value = True
+            with patch.object(sys, 'frozen', True, create=True), \
+                    patch.object(sys, '_MEIPASS', runtime, create=True), \
+                    patch('asset_manager.ctypes.WinDLL', return_value=kernel), \
+                    patch.dict(os.environ, {'PATH': os.pathsep.join([runtime, runtime + os.sep + 'lib', str(game)])}), \
+                    patch('asset_manager.subprocess.Popen', side_effect=OSError('launch failed')) as start:
+                with self.assertRaisesRegex(OSError, 'launch failed'):
+                    manager.launch_game(game, 'ready')
+            self.assertEqual(start.call_args.kwargs['env']['PATH'], str(game))
+            self.assertEqual([call.args for call in kernel.SetDllDirectoryW.call_args_list],
+                             [(None,), (runtime,)])
+
+    def test_save_in_manager_prepares_without_launching(self):
+        with tempfile.TemporaryDirectory() as folder:
+            def decision(game, packages, rows, **kwargs):
+                kwargs['on_prepare']()
+                return True
+            with patch.object(sys, 'argv', ['asset_manager', '--game', folder, '--manage']), \
+                    patch('asset_gui.review', side_effect=decision), \
+                    patch('asset_manager.prepare_game', return_value={'complete': True}) as prepare, \
+                    patch('asset_manager.launch_game') as launch, patch('builtins.print'):
+                self.assertEqual(manager.main(), 0)
+            prepare.assert_called_once()
+            launch.assert_not_called()
 
     def test_manual_editor_opens_with_import_errors_without_building_or_launching(self):
         with tempfile.TemporaryDirectory() as folder:

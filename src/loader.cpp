@@ -43,6 +43,7 @@ CreateDeviceFn realCreateDevice{}; ResetFn realReset{}; EndSceneFn realEndScene{
 int width=1280,height=720,windowMode=0,activeWindowMode=0,vsync=1,fpsCap=0,selectedRow=0,category=0;
 bool menuOpen=false, videoPending=false, pendingApply=false, revertingVideo=false, videoOptionsLoaded=false;
 bool captureKey=false;
+bool preparationMissing=false;
 Plugin* selectedPlugin=nullptr;
 HRESULT lastResetResult=S_OK;
 bool nativeResetInProgress=false;
@@ -360,7 +361,7 @@ bool preparedPlugin(const std::wstring& zip,const std::wstring& cacheName,std::w
 void loadZip(const std::wstring& zip,const std::wstring& filename){
     if(!ZipHasRootManifest(zip))return;
     std::wstring stem=filename.substr(0,filename.size()-4);for(auto& c:stem)if(!((c>=L'a'&&c<=L'z')||(c>=L'A'&&c<=L'Z')||(c>=L'0'&&c<=L'9')||c==L'_'||c==L'-'))c=L'_';
-    std::wstring dest; if(!preparedPlugin(zip,stem,dest)){log("Plugin is unprepared or changed. Run Prepare Mods.cmd with the game closed; skipping it.");return;}
+    std::wstring dest; if(!preparedPlugin(zip,stem,dest)){preparationMissing=true;log("Plugin is unprepared or changed. Use Manage Mod Priorities.cmd > Save & prepare with the game closed; skipping it.");return;}
     std::wstring manifest=dest+L"\\manifest.ini",idBuf[1];wchar_t id[256]{},entry[260]{};
     if(GetFileAttributesW(manifest.c_str())==INVALID_FILE_ATTRIBUTES)return; // Legacy assets are handled by the importer.
     GetPrivateProfileStringW(L"Mod",L"Id",L"",id,256,manifest.c_str());GetPrivateProfileStringW(L"Mod",L"Entry",L"",entry,260,manifest.c_str());
@@ -385,6 +386,18 @@ std::wstring pluginCacheName(const std::wstring& filename) {
 bool pluginAvailable(const char* id) {
     return id&&std::any_of(plugins.begin(),plugins.end(),[&](const auto& p){return p->id==id&&p->module;});
 }
+bool missingAssetPreparation() {
+    if(GetFileAttributesW((root+L"Mods\\Assets\\catalog.ini").c_str())!=INVALID_FILE_ATTRIBUTES)return false;
+    WIN32_FIND_DATAW file{};HANDLE find=FindFirstFileW((root+L"Mods\\*").c_str(),&file);
+    if(find==INVALID_HANDLE_VALUE)return false;
+    bool found=false;
+    do {
+        if(file.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)continue;
+        const auto extension=wcsrchr(file.cFileName,L'.');
+        if(extension&&(!_wcsicmp(extension,L".zip")||!_wcsicmp(extension,L".rar")||!_wcsicmp(extension,L".7z"))){found=true;break;}
+    }while(FindNextFileW(find,&file));
+    FindClose(find);return found;
+}
 void loadPlugins() {
     struct Archive {std::wstring path,filename;int priority;};
     std::vector<Archive> archives;
@@ -395,7 +408,8 @@ void loadPlugins() {
         if(!ZipHasRootManifest(path))continue;
         std::wstring prepared;
         if(!preparedPlugin(path,pluginCacheName(fd.cFileName),prepared)){
-            log("Plugin is unprepared or changed. Run Prepare Mods.cmd with the game closed; skipping it.");continue;
+            preparationMissing=true;
+            log("Plugin is unprepared or changed. Use Manage Mod Priorities.cmd > Save & prepare with the game closed; skipping it.");continue;
         }
         auto manifest=prepared+L"\\manifest.ini";
         int priority=static_cast<int>(GetPrivateProfileIntW(L"Mod",L"LoadPriority",0,manifest.c_str()));
@@ -484,6 +498,11 @@ extern "C" IDirect3D9* WINAPI ProxyCreate9(UINT version) {
         timeBeginPeriod(1);
         logFile=_wfsopen((root+L"TCSModernOptions.log").c_str(),L"w",_SH_DENYNO);
         loadCoreConfig();loadPlugins();PrepareAssetOverlay(root,host,log,pluginAvailable);
+        if(preparationMissing||missingAssetPreparation())MessageBoxW(nullptr,
+            L"Some mods have not been prepared for this installation.\n\n"
+            L"Close the game, open Manage Mod Priorities.cmd and choose Save & prepare. "
+            L"Then start normally through Steam or the game EXE, or use Launch game in the manager.",
+            L"TCS Mod Loader - mods need preparation",MB_OK|MB_ICONINFORMATION);
         log("TCS Modern Options loader initialized");
     }
     auto d=fn(version);

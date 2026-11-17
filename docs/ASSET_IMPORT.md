@@ -1,7 +1,7 @@
-# Asset mods - loader 1.8.1
+# Asset mods - loader 1.8.2
 
 With the game closed, run **Manage Mod Priorities.cmd > Launch game** or
-**Prepare Mods.cmd** after changing archives or asset settings. The helper bundles
+**Manage Mod Priorities.cmd > Save & prepare** after changing archives or asset settings. The helper bundles
 its Python runtime inside the EXE. The game process no longer prepares mods.
 
 Character roster/shop changes, private character names and generated portrait
@@ -333,10 +333,10 @@ profile and file coverage, then assigns unique priorities. This is a determinist
 suggestion rather than a dependency solver. It does not recognize special mod
 names or execute archive instructions. Save or adjust the suggested order.
 
-Save settings persists changes and keeps the editor open. Launch game saves and
+Save & prepare persists changes, prepares plugins and assets, and keeps the editor open. Launch game saves and
 closes it. During startup that resumes the existing game without creating a
 second process. From the manual editor, the helper finishes the overlay build
-before starting the game executable in its installation directory. A child-only
+before launching Steam installations through Steam, or the local executable in standalone folders. The bundled runtime DLL search path is reset for either launch. A child-only
 review token is bound to the archive/config fingerprint, preventing the same
 manual review from immediately reopening at startup. Any changed input invalidates
 that approval. The manual launcher should be used with the game closed.

@@ -8,7 +8,7 @@ int wmain(int argc,wchar_t** argv) {
     wchar_t executable[32768]{};GetModuleFileNameW(nullptr,executable,32768);
     const auto folder=fs::path(executable).parent_path()/(L"plugin-extraction-test-"+std::to_wstring(GetCurrentProcessId()));
     fs::create_directories(folder/L"Mods");root=folder.wstring()+L"\\";
-    fs::copy(fs::path(argv[1]).parent_path(),folder,fs::copy_options::recursive|fs::copy_options::overwrite_existing);
+    fs::copy_file(argv[1],folder/L"TCSAssetManager.exe");
     const auto archive=folder/L"Mods/ModernOptions.zip";
     fs::copy_file(argv[2],archive);
     std::wstring prepared;

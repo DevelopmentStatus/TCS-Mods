@@ -81,6 +81,23 @@ def main():
             try: window.root.destroy()
             except Exception: pass
     print('Tk layout, reorder, auto-sort, priorities, enable/disable, details, save and Launch game: PASS')
+    with tempfile.TemporaryDirectory(dir=test_root) as folder:
+        window = LoadOrderWindow(folder, [package(1)], startup=False,
+                                 on_prepare=lambda: (_ for _ in ()).throw(ValueError('fixture failure')))
+        try:
+            window.root.update()
+            with patch('asset_gui.messagebox.showerror') as error:
+                window.save(launch=True)
+                error.assert_called_once()
+            assert window.root.winfo_exists() and not window.launch_requested
+            calls = []
+            window.on_prepare = lambda: calls.append('prepared')
+            window.save(close=False)
+            assert calls == ['prepared']
+            assert 'Mods prepared' in window.details.get('1.0', 'end')
+        finally:
+            window.root.destroy()
+    print('Manual preparation, failure recovery and ready-for-Steam status: PASS')
     check_scaling()
 
 

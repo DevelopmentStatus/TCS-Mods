@@ -58,6 +58,9 @@ class PluginCacheTests(unittest.TestCase):
             third = prepare(game, archive, 'plugin')
             self.assertNotEqual(second, third)
             self.assertEqual((third / 'Plugin.dll').read_bytes(), b'fixture, never executed')
+            self.assertEqual(len(list(third.parent.glob('*/manifest.ini'))), 2)
+            self.assertFalse(first.exists())
+            self.assertTrue(second.exists())
 
     def test_rejects_unsafe_members_and_asi(self):
         for name in ['../outside.dll', '/outside.dll', 'C:/outside.dll',

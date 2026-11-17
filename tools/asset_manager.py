@@ -1,6 +1,8 @@
 """Prepare mod archives before starting the game; the loader reads prepared files."""
 import argparse
 import configparser
+from contextlib import contextmanager
+import ctypes
 import hashlib
 import json
 import os
@@ -17,6 +19,7 @@ from asset_conflicts import overlaps
 from asset_version import VERSION
 from portrait_assets import prepare as prepare_portraits
 import character_names
+from cache_retention import prune
 
 
 def text(data):
@@ -211,6 +214,7 @@ def build(game, review=None):
                         and active.parent == report_path.parent and active.name == 'Active'):
                     if review is not None and review(game, prior['packages'], overlaps(prior['packages'])):
                         return build(game)
+                    prune(mods / 'Assets', active.parent, r'generation-[0-9a-f]{32}')
                     return prior
             except (OSError, ValueError, KeyError):
                 pass
@@ -218,6 +222,13 @@ def build(game, review=None):
     # replacement. An error never activates a half-built overlay.
     generation = mods / 'Assets' / ('generation-' + uuid.uuid4().hex)
     generation.mkdir(parents=True)
+    # A failed attempt is retained for its report, but repeated attempts cannot
+    # accumulate an unlimited set of extraction folders.
+    previous = Path(cached['Overlay']['Path']).parent if cached.has_option('Overlay', 'Path') else None
+    if previous is not None and (not previous.is_dir() or previous.parent.resolve() != (mods / 'Assets').resolve()
+                                 or not re.fullmatch(r'generation-[0-9a-f]{32}', previous.name)):
+        previous = None
+    prune(mods / 'Assets', generation, r'generation-[0-9a-f]{32}', previous=previous)
     active = generation / 'Active'
     active.mkdir()
     packages = scan_packages(game)
@@ -363,13 +374,59 @@ def build(game, review=None):
     return result
 
 
+def launch_command(game):
+    """Use Steam for its installed copy; standalone folders use their own EXE."""
+    game = Path(game).resolve()
+    steamapps = game.parent.parent
+    manifest = steamapps / 'appmanifest_32440.acf'
+    if game.parent.name.casefold() == 'common' and manifest.is_file():
+        values = dict(re.findall(r'"([^"\r\n]+)"\s+"([^"\r\n]*)"',
+                                 manifest.read_text(encoding='utf-8-sig')))
+        if (values.get('appid') == '32440'
+                and values.get('installdir', '').casefold() == game.name.casefold()):
+            launcher = Path(values.get('LauncherPath', '').replace('\\\\', '\\'))
+            if launcher.is_file():
+                return [str(launcher), '-applaunch', '32440']
+    return [str(game / 'LEGOStarWarsSaga.exe')]
+
+
+@contextmanager
+def external_dll_search():
+    # PyInstaller's SetDllDirectory is inherited by native child processes.
+    # Restore the OS search path for Steam/the game, then restore our own Tk path.
+    if sys.platform != 'win32' or not getattr(sys, 'frozen', False):
+        yield
+        return
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.GetDllDirectoryW.argtypes = [ctypes.c_uint32, ctypes.c_wchar_p]
+    kernel.GetDllDirectoryW.restype = ctypes.c_uint32
+    kernel.SetDllDirectoryW.argtypes = [ctypes.c_wchar_p]
+    kernel.SetDllDirectoryW.restype = ctypes.c_int
+    previous = ctypes.create_unicode_buffer(32768)
+    length = kernel.GetDllDirectoryW(len(previous), previous)
+    if length >= len(previous):
+        raise OSError('Cannot read the helper DLL search path')
+    if not kernel.SetDllDirectoryW(None):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        yield
+    finally:
+        kernel.SetDllDirectoryW(previous.value or None)
+
+
 def launch_game(game, signature):
     game = Path(game).resolve()
     executable = game / 'LEGOStarWarsSaga.exe'
     if not executable.is_file():
         raise FileNotFoundError('LEGOStarWarsSaga.exe was not found in ' + str(game))
     environment = dict(os.environ, TCS_PRIORITY_REVIEWED=signature, PYINSTALLER_RESET_ENVIRONMENT='1')
-    return subprocess.Popen([str(executable)], cwd=str(game), env=environment)
+    if getattr(sys, 'frozen', False):
+        runtime = os.path.normcase(os.path.abspath(sys._MEIPASS))
+        environment['PATH'] = os.pathsep.join(p for p in environment.get('PATH', '').split(os.pathsep)
+            if p and not os.path.normcase(os.path.abspath(p)).startswith(runtime + os.sep)
+            and os.path.normcase(os.path.abspath(p)) != runtime)
+    with external_dll_search():
+        return subprocess.Popen(launch_command(game), cwd=str(game), env=environment)
 
 
 def prepare_game(game, review=None):
@@ -396,10 +453,13 @@ def main():
     parser.add_argument('--check-gui', action='store_true', help='Check the bundled Tk runtime without editing mods')
     parser.add_argument('--startup-ui', action='store_true', help='Review asset overlaps before game startup')
     parser.add_argument('--manage', action='store_true', help='Always open the priority editor')
+    parser.add_argument('--launch', action='store_true', help='Prepare mods and launch through Steam or the local game EXE')
     parser.add_argument('--ui-event', help=argparse.SUPPRESS)
     parser.add_argument('--extract-plugin', type=Path, help=argparse.SUPPRESS)
     parser.add_argument('--plugin-cache', help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.launch and (args.manage or args.startup_ui):
+        parser.error('--launch cannot be combined with --manage or --startup-ui')
     try:
         if args.check_gui:
             import tkinter as tk
@@ -413,10 +473,15 @@ def main():
             print(prepare(args.game, args.extract_plugin, args.plugin_cache or ''))
             return 0
         callback = None
-        launch_requested = False
+        prepared_result = None
+        launch_requested = args.launch
         def request_launch():
             nonlocal launch_requested
             launch_requested = True
+        def prepare_settings():
+            nonlocal prepared_result
+            prepared_result = prepare_game(args.game)
+            return prepared_result
         # A manual Launch game action already reviewed this exact archive/config
         # state. Its child game must not immediately reopen the same dialog.
         approved = (args.startup_ui and os.environ.get('TCS_PRIORITY_REVIEWED') is not None
@@ -424,13 +489,15 @@ def main():
         if args.manage or (args.startup_ui and not approved):
             from asset_gui import review
             callback = lambda game, packages, rows: review(game, packages, rows,
-                force=args.manage, event_name=args.ui_event, startup=args.startup_ui, on_launch=request_launch)
+                force=args.manage, event_name=args.ui_event, startup=args.startup_ui, on_launch=request_launch,
+                on_prepare=prepare_settings if args.manage and not args.startup_ui else None)
         if args.manage and not args.startup_ui:
             # Managing priorities must work even when extraction/merging fails.
-            # Save/Close edits settings only; Launch prepares the final overlay.
+            # Save prepares while the editor is open; failures remain editable.
             packages = scan_packages(args.game)
             callback(args.game.resolve(), packages, overlaps(packages))
-            result = (prepare_game(args.game) if launch_requested else dict(managed=True, packages=packages))
+            result = (prepared_result if prepared_result is not None else
+                      prepare_game(args.game) if launch_requested else dict(managed=True, packages=packages))
         else:
             result = prepare_game(args.game, review=callback)
         if launch_requested and not args.startup_ui:

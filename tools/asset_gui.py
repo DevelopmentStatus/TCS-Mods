@@ -30,13 +30,14 @@ def flow_controls(frame, widgets, changed=None):
 
 
 class LoadOrderWindow:
-    def __init__(self, game, packages, startup=True):
+    def __init__(self, game, packages, startup=True, on_prepare=None):
         self.game = Path(game)
         self.packages = copy.deepcopy(packages)
         self.by_id = {p['id']: p for p in self.packages}
         self.changed = False
         self.startup = startup
         self.launch_requested = False
+        self.on_prepare = on_prepare
         self.root = tk.Tk()
         self._topmost_timer = None
         self.root.bind('<Destroy>', self.cancel_presentation, add='+')
@@ -144,7 +145,8 @@ class LoadOrderWindow:
         ttk.Button(footer, text='Use saved settings' if startup else 'Close without saving', command=self.root.destroy).pack(side='left')
         self.launch_button = ttk.Button(footer, text='Launch game', style='Launch.TButton', command=self.launch)
         self.launch_button.pack(side='right')
-        ttk.Button(footer, text='Save settings', command=lambda: self.save(close=False)).pack(side='right', padx=8)
+        ttk.Button(footer, text='Save & prepare' if on_prepare else 'Save settings',
+                   command=lambda: self.save(close=False)).pack(side='right', padx=8)
         self.root.protocol('WM_DELETE_WINDOW', self.root.destroy)
         self.refresh()
         if self.packages:
@@ -326,17 +328,28 @@ class LoadOrderWindow:
         self.edit_priority()
         try:
             self.changed = save_settings(self.game, self.packages) or self.changed
+            if self.on_prepare is not None:
+                self.set_details('Preparing plugins and assets. Large packs can take several minutes...')
+                self.root.configure(cursor='watch')
+                self.root.update_idletasks()
+                try:
+                    self.on_prepare()
+                finally:
+                    self.root.configure(cursor='')
         except Exception as error:
-            messagebox.showerror('Cannot save load order', str(error), parent=self.root)
+            self.set_details('Mods are not ready. Fix the preparation error and try again.\n\n' + str(error))
+            messagebox.showerror('Cannot prepare mods' if self.on_prepare else 'Cannot save load order',
+                                 str(error), parent=self.root)
             return
         self.launch_requested = launch
         if close:
             self.root.destroy()
         else:
-            self.set_details('Settings saved. Launch game when ready, or keep adjusting the order.')
+            self.set_details('Mods prepared. You can launch normally through Steam or the game EXE.'
+                             if self.on_prepare else 'Settings saved. Launch game when ready, or keep adjusting the order.')
 
 
-def review(game, packages, rows, force=False, event_name=None, startup=True, on_launch=None):
+def review(game, packages, rows, force=False, event_name=None, startup=True, on_launch=None, on_prepare=None):
     changed = False
     auto_save_error = None
     failed = any(p.get('error') and p['enabled'] for p in packages)
@@ -365,7 +378,7 @@ def review(game, packages, rows, force=False, event_name=None, startup=True, on_
             getattr(kernel, method).argtypes = [ctypes.c_void_p]
         handle = kernel.OpenEventW(2, False, event_name)
     try:
-        window = LoadOrderWindow(game, packages, startup=startup)
+        window = LoadOrderWindow(game, packages, startup=startup, on_prepare=on_prepare)
         window.root.update_idletasks()
         if auto_save_error is not None:
             window.set_details('Automatic sorting could not be saved: ' + auto_save_error +

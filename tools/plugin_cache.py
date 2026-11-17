@@ -8,6 +8,7 @@ import re
 import stat
 import uuid
 import zipfile
+from cache_retention import prune
 
 MAX_ARCHIVE = 64 * 1024 * 1024
 MAX_EXPANDED = 128 * 1024 * 1024
@@ -133,6 +134,7 @@ def prepare(game, archive, cache_name):
                         matches = False
                         break
                 if matches:
+                    prune(cache, generation, r'[0-9a-f]{64}-[0-9a-f]{32}')
                     return generation
         except (OSError, ValueError, configparser.Error):
             pass
@@ -153,4 +155,5 @@ def prepare(game, archive, cache_name):
         receipt = cache / ('ready-' + uuid.uuid4().hex + '.tmp')
         receipt.write_text('[Plugin]\nGeneration=' + generation_name + '\n', encoding='utf-16')
         os.replace(receipt, cache / 'ready.ini')
+        prune(cache, generation, r'[0-9a-f]{64}-[0-9a-f]{32}')
         return generation

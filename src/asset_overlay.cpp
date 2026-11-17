@@ -146,7 +146,7 @@ bool PrepareAssetOverlay(const std::wstring& root,const TCSModHost& host,void (*
     if(!supported()){log("Asset overrides: unsupported executable or conflicting file hooks");return false;}
     auto catalog=root+L"Mods\\Assets\\catalog.ini";
     if(GetFileAttributesW(catalog.c_str())==INVALID_FILE_ATTRIBUTES){
-        log("No prepared asset catalog. Run Prepare Mods.cmd with the game closed.");return false;
+        log("No prepared asset catalog. Use Manage Mod Priorities.cmd > Save & prepare with the game closed.");return false;
     }
     if(!catalogRequirementsMet(catalog,pluginAvailable)){
         log("Asset catalog is outdated or its required plugin failed to load. Prepare mods and install the separate Character & Shop Extender when required.");return false;

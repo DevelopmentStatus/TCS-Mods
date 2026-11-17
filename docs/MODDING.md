@@ -6,12 +6,12 @@ The TCS Mod Loader targets the validated 32-bit Steam PC build of LEGO Star Wars
 
 1. Close the game and find its installation folder, the folder containing `LEGOStarWarsSaga.exe` (Steam: Properties → Installed Files → Browse).
 2. If a `d3d9.dll` already exists there, copy it somewhere safe as a backup.
-3. Copy the loader package's `d3d9.dll` beside `LEGOStarWarsSaga.exe`.
+3. Extract the complete loader package beside `LEGOStarWarsSaga.exe`, including `d3d9.dll`, `TCSAssetManager.exe` and `Manage Mod Priorities.cmd`.
 4. Create a `Mods` folder in that same location if needed. The loader ZIP contains this folder too, so extracting the full loader ZIP into the game folder creates it automatically.
 
 ## Install mods
 
-Keep each mod as a ZIP. Put mod ZIPs directly into `<game folder>\Mods`; do not extract them. For example, put `TCSFirstPerson-v0.4.0.zip` and `TCSModernOptions-v0.4.0.zip` together there. Launch or restart the game to load them. Each package is extracted under `Mods\Loaded`; configuration is stored under `Mods\Config`.
+Keep each mod as a ZIP. Put mod ZIPs directly into `<game folder>\Mods`; do not extract them. For example, put `TCSFirstPerson-v0.4.0.zip` and `TCSModernOptions-v0.4.0.zip` together there. Open Manage Mod Priorities.cmd and choose Save & prepare, then launch normally through Steam or the game EXE. Launch game in the manager prepares and launches in one step. Each package is extracted under `Mods\Loaded`; configuration is stored under `Mods\Config`.
 
 Pause the game and choose **Mod Settings**, directly below **Effects Settings**, to see installed mods, then select a mod name to open its settings. This menu belongs to the loader and works without TCS Modern Options. Registered settings receive controls automatically, rendered with the game's own menu text and navigation. Select the mod name, use the page row for additional settings, and confirm or left/right to change a value. Back or Escape returns to the pause menu. Display changes use the native game resource-release/reset/rebuild sequence. Choose Keep display changes to save them; unconfirmed changes revert after 15 seconds.
 
